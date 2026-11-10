@@ -21,6 +21,8 @@ for fp in b.GetFootprints():
     if ref.startswith("REF") or not ref:
         continue
     pads = list(fp.Pads())
+    if fp.GetAttributes() & pcbnew.FP_EXCLUDE_FROM_BOM:
+        continue        # отверстия под провода и т.п. - деталью не являются
     if not pads or all(p.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH for p in pads):
         continue        # крепёжные отверстия: паять нечего, в BOM для сборки не нужны
     fid = "%s:%s" % (fp.GetFPID().GetLibNickname(), fp.GetFPID().GetLibItemName())
@@ -56,8 +58,6 @@ LCSC_ANY = {
     "SMF24CA": "C3035829",  # PAKER, двунаправленный, SOD-123FL
     "SMF24A": "C3035828",   # PAKER, однонаправленный, SOD-123FL
     # XKB TS-1187A-B-A-B: корпус 5.1x5.1, посадка как у ALPS SKQG
-    "MARK1": "C318884",
-    "MARK2": "C318884",
     "BOOT": "C318884",
 }
 with open(os.path.join(out, "BOM.csv"), "w", newline="") as f:
@@ -86,6 +86,8 @@ with open(os.path.join(out, "BOM.csv"), "w", newline="") as f:
                 note += "; " + ALT[val0]
         elif tht.get(val0):
             note = "выводная: в SMT-монтаж не идёт, паяется отдельно"
+            if val0 == "I2C":
+                note += "; гребёнка 1x5 шаг 2.54 мм или провода к контроллеру"
             if val0 == "SHUNT/BAT":
                 note += "; клемма 5.08 мм на 4 контакта (KF128 / DG128 / Phoenix MKDS 1,5/4-5,08)"
         elif passive.match(val):

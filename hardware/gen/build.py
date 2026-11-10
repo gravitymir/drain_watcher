@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""Генератор проекта KiCad: drain_watcher - логгер тока утечки автомобильного аккумулятора.
+"""Генератор проекта KiCad: drain_watcher - датчик тока утечки автомобильного аккумулятора.
 
-Плата 70 x 50 мм, 2 слоя. Основной ток по плате не идёт: шунт стоит на силовых шинах,
-плата только снимает с него напряжение (Kelvin) и напряжение аккумулятора.
+Плата-модуль на INA228 без своего микроконтроллера: внешний контроллер (ESP32 и т.п.)
+подключается к гребёнке J1 по I2C (VCC, GND, SCL, SDA, ALERT). 2 слоя. Основной ток
+по плате не идёт: шунт стоит на силовых шинах, плата снимает с него напряжение
+(Kelvin) и напряжение аккумулятора.
 
     "C:/Program Files/KiCad/10.0/bin/python.exe" hardware/gen/build.py hardware
 
 Схема и плата собираются из одного описания (PARTS ниже), разводка - координатами.
 """
-import os, sys, json
+import os, sys, json, re
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import kicadenv
 import pcbnew
@@ -18,99 +20,68 @@ import kigen
 
 OUT = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), ".."))
 NAME = "drain_watcher"
-X0, Y0, BW, BH = 100.0, 100.0, 70.0, 50.0
-X1, Y1 = X0 + BW, Y0 + BH
 FCU, BCU = pcbnew.F_Cu, pcbnew.B_Cu
-W, WN, WP = 0.2, 0.15, 0.4                 # сигнал / узкая (USB, CC) / питание
+W, WP = 0.2, 0.4                           # сигнал / питание
+
+# Узел измерения - как его расставили вручную в KiCad; гребёнка J1 - слева от INA228,
+# подтяжки I2C - между ними. Справа вместо клеммы - четыре отверстия под провода
+# (устройство цельное, провода впаиваются один раз).
+TX, TY = 149.8, 117.6                       # колонка отверстий под провода, шаг 4.6 мм
+UX, UY = 135.4, 122.0                       # INA228
+HX, HY = 125.5, 129.0                       # гребёнка J1: вывод 1 (VCC) снизу, ряд вверх
+
+# Контур - вплотную к деталям: слева по гребёнке J1 (подписи у неё - на обороте, справа
+# от выводов), справа - по отверстиям под провода, сверху и снизу - по via и R3.
+X0, X1 = 124.0, TX + 2.2
+Y0, Y1 = 115.0, 133.3
+BW, BH = X1 - X0, Y1 - Y0
 
 # ------------------------------------------------------------------ детали
 # ref: (libid, value, (fplib, fpname), {pin: net}, (x, y, rot))
 R0603 = ("Resistor_SMD", "R_0603_1608Metric")
 C0603 = ("Capacitor_SMD", "C_0603_1608Metric")
-C0805 = ("Capacitor_SMD", "C_0805_2012Metric")
-SW = ("Button_Switch_SMD", "SW_SPST_SKQG_WithoutStem")
-
-# Модуль повёрнут антенной к левому краю: ряд выводов 1-14 смотрит вниз (питание, EN,
-# USB), ряд 27-40 - вверх (кнопки, светодиод), ряд 15-26 - вправо, к INA228.
-MX, MY = 112.75, 122.0
-JX = 122.5                                  # ось USB-C: D- (A7) встаёт под вывод 13 модуля
-JY = 145.9
-UX, UY = 140.0, 122.0                       # INA228
-TX = 164.0                                  # колонка винтовой клеммы
-
-ESP_NETS = {"1": "GND", "40": "GND", "41": "GND", "2": "+3V3", "3": "EN",
-            "13": "USB_DM", "14": "USB_DP",
-            "21": "SDA",        # IO13
-            "20": "SCL",        # IO12
-            # ALERT - на IO21 (вывод 23), а не на соседний IO14: тогда SDA не оказывается
-            # в середине жгута и подтяжке SDA остаётся место. Подтяжка ALERT -
-            # внутренняя (open-drain, сигнал медленный).
-            "23": "ALERT",      # IO21
-            "27": "BOOT",       # IO0
-            "34": "MARK1",      # IO41
-            "31": "MARK2",      # IO38
-            "35": "LED"}        # IO42
 
 PARTS = {
-    "U1": ("RF_Module:ESP32-S3-WROOM-1", "ESP32-S3-WROOM-1-N16R8", ("RF_Module", "ESP32-S3-WROOM-1"),
-           ESP_NETS, (MX, MY, 90)),
     "U2": ("Sensor_Energy:INA228", "INA228AIDGSR", ("Package_SO", "MSOP-10_3x3mm_P0.5mm"),
-           {"1": "GND", "2": "GND", "3": "ALERT", "4": "SDA", "5": "SCL", "6": "+3V3",
+           {"1": "GND", "2": "GND", "3": "ALERT", "4": "SDA", "5": "SCL", "6": "VCC",
             "7": "GND", "8": "VBUS_S", "9": "INN", "10": "INP"}, (UX, UY, 0)),
-    "U3": ("Regulator_Linear:AP2112K-3.3", "AP2112K-3.3", ("Package_TO_SOT_SMD", "SOT-23-5"),
-           {"1": "VBUS", "2": "GND", "3": "VBUS", "5": "+3V3"}, (114.5, 137.8, 180)),
-    "J1": ("Connector:USB_C_Receptacle_USB2.0_16P", "USB-C", ("Connector_USB", "USB_C_Receptacle_HRO_TYPE-C-31-M-12"),
-           {"A1": "GND", "A12": "GND", "B1": "GND", "B12": "GND",
-            "A4": "VBUS", "A9": "VBUS", "B4": "VBUS", "B9": "VBUS",
-            "A5": "CC1", "B5": "CC2", "A6": "USB_DP", "B6": "USB_DP",
-            "A7": "USB_DM", "B7": "USB_DM", "SH": "GND"}, (JX, JY, 0)),
-    # Клемма: 1 - SNS+ (шунт, сторона кузова), 2 - SNS- (шунт, сторона аккумулятора),
-    # 3 - GND (отдельный провод на ту же сторону шунта), 4 - BAT+ (через предохранитель 1 А)
-    "J2": ("Connector_Generic:Conn_01x04", "SHUNT/BAT",
-           ("TerminalBlock_Phoenix", "TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal"),
-           {"1": "SNS_P", "2": "SNS_N", "3": "GND", "4": "VBAT"}, (TX, 113.0, 270)),
+    # Гребёнка к внешнему контроллеру: 1 VCC (2.7...5.5 В), 2 GND, 3 SCL, 4 SDA, 5 ALERT.
+    # Порядок выводов повторяет порядок у INA228 - дорожки идут без пересечений.
+    "J1": ("Connector_Generic:Conn_01x05", "I2C", ("Connector_PinHeader_2.54mm", "PinHeader_1x05_P2.54mm_Vertical"),
+           {"1": "VCC", "2": "GND", "3": "SCL", "4": "SDA", "5": "ALERT"}, (HX, HY, 180)),
+    # Провода: 1 - SNS+ (шунт, сторона кузова), 2 - SNS- (шунт, сторона аккумулятора),
+    # 3 - GND (отдельный провод на ту же сторону шунта), 4 - BAT+ (через предохранитель 1 А).
+    # Отверстия 1.15 мм - под провод до 0.5 мм2.
+    "J2": ("Connector_Generic:Conn_01x04", "WIRES",
+           ("Connector_Wire", "SolderWire-0.5sqmm_1x04_P4.6mm_D0.9mm_OD2.1mm"),
+           {"1": "SNS_P", "2": "SNS_N", "3": "GND", "4": "VBAT"}, (TX, TY, 270)),
     # --- вход измерения
-    "D1": ("Device:D_TVS", "SMF24CA", ("Diode_SMD", "D_SOD-123F"), {"1": "SNS_P", "2": "SNS_N"}, (156.0, 115.54, 270)),
-    "R1": ("Device:R", "10R", R0603, {"1": "INP", "2": "SNS_P"}, (146.6, 118.4, 0)),
-    "R2": ("Device:R", "10R", R0603, {"1": "INN", "2": "SNS_N"}, (146.6, 120.4, 0)),
-    "C1": ("Device:C", "100nF", C0603, {"1": "INP", "2": "INN"}, (144.3, 119.4, 270)),
-    "R3": ("Device:R", "10k", ("Resistor_SMD", "R_1206_3216Metric"), {"1": "VBUS_S", "2": "VBAT"}, (156.0, 128.24, 0)),
-    "D2": ("Device:D_Zener", "SMF24A", ("Diode_SMD", "D_SOD-123F"), {"1": "VBUS_S", "2": "GND"}, (152.2, 129.8, 270)),
-    "C2": ("Device:C", "100nF", C0603, {"1": "VBUS_S", "2": "GND"}, (146.6, 122.8, 270)),
-    "C3": ("Device:C", "100nF", C0603, {"1": "+3V3", "2": "GND"}, (142.9, 125.3, 0)),
-    "R4": ("Device:R", "4.7k", R0603, {"1": "SCL", "2": "+3V3"}, (132.0, 123.6, 270)),
-    "R5": ("Device:R", "4.7k", R0603, {"1": "SDA", "2": "+3V3"}, (130.0, 120.5, 90)),
-    # --- питание и ESP32
-    "C4": ("Device:C", "10uF", C0805, {"1": "VBUS", "2": "GND"}, (118.4, 136.85, 90)),
-    "C5": ("Device:C", "10uF", C0805, {"1": "+3V3", "2": "GND"}, (111.0, 139.7, 270)),
-    "C6": ("Device:C", "10uF", C0805, {"1": "GND", "2": "+3V3"}, (107.81, 136.0, 0)),
-    "C7": ("Device:C", "100nF", C0603, {"1": "GND", "2": "+3V3"}, (107.985, 133.6, 0)),
-    "C8": ("Device:C", "1uF", C0603, {"1": "EN", "2": "GND"}, (112.3, 133.6, 270)),
-    "R7": ("Device:R", "10k", R0603, {"1": "EN", "2": "+3V3"}, (114.3, 133.6, 270)),
-    "R9": ("Device:R", "5.1k", R0603, {"1": "CC1", "2": "GND"}, (JX - 1.25, 136.0, 90)),
-    "R10": ("Device:R", "5.1k", R0603, {"1": "CC2", "2": "GND"}, (JX + 1.75, 136.0, 90)),
-    # --- кнопки и светодиод
-    "SW1": ("Switch:SW_Push", "MARK1", SW, {"1": "GND", "2": "MARK1"}, (112.0, 106.0, 0)),
-    "SW2": ("Switch:SW_Push", "MARK2", SW, {"1": "GND", "2": "MARK2"}, (123.0, 106.0, 0)),
-    "SW3": ("Switch:SW_Push", "BOOT", SW, {"1": "GND", "2": "BOOT"}, (134.0, 106.0, 0)),
-    "R8": ("Device:R", "1k", R0603, {"1": "LED_A", "2": "LED"}, (112.2, 110.6, 0)),
-    "D3": ("Device:LED", "LED", ("LED_SMD", "LED_0805_2012Metric"), {"1": "GND", "2": "LED_A"}, (108.9, 110.6, 0)),
+    "D1": ("Device:D_TVS", "SMF24CA", ("Diode_SMD", "D_SOD-123F"), {"1": "SNS_P", "2": "SNS_N"}, (145.57, 118.86, 270)),
+    "R1": ("Device:R", "10R", R0603, {"1": "INP", "2": "SNS_P"}, (UX + 6.6, 118.4, 0)),
+    "R2": ("Device:R", "10R", R0603, {"1": "INN", "2": "SNS_N"}, (UX + 6.6, 120.4, 0)),
+    "C1": ("Device:C", "100nF", C0603, {"1": "INP", "2": "INN"}, (UX + 4.3, 119.4, 270)),
+    "R3": ("Device:R", "10k", ("Resistor_SMD", "R_1206_3216Metric"), {"1": "VBUS_S", "2": "VBAT"}, (143.51, 130.52, 270)),
+    "D2": ("Device:D_Zener", "SMF24A", ("Diode_SMD", "D_SOD-123F"), {"1": "VBUS_S", "2": "GND"}, (145.58, 125.42, 270)),
+    "C2": ("Device:C", "100nF", C0603, {"1": "VBUS_S", "2": "GND"}, (UX + 6.6, 122.8, 270)),
+    "C3": ("Device:C", "100nF", C0603, {"1": "VCC", "2": "GND"}, (UX + 2.9, 125.3, 0)),
+    # --- подтяжки I2C и ALERT к VCC (у многих плат контроллеров своих нет)
+    "R4": ("Device:R", "4.7k", R0603, {"1": "SCL", "2": "VCC"}, (HX + 3.0, 124.75, 270)),
+    "R5": ("Device:R", "4.7k", R0603, {"1": "SDA", "2": "VCC"}, (HX + 4.2, 120.55, 90)),
+    "R6": ("Device:R", "10k", R0603, {"1": "ALERT", "2": "VCC"}, (HX + 2.5, 118.0, 90)),
 }
-# Левый край целиком - запретная зона антенны (она в футпринте модуля): винт там
-# испортил бы диаграмму. Отверстия - в правых углах, слева снизу и сверху за кнопками.
-HOLES = [(147.0, 104.0), (166.0, 104.0), (110.5, 146.5), (166.0, 146.0)]
 
 b = Builder(layers=2)
 for ref, (lid, val, (fl, fn), nets, (x, y, r)) in PARTS.items():
     b.place(ref, fl, fn, x, y, r, value=val)
-for i, (x, y) in enumerate(HOLES, 1):
-    b.place("H%d" % i, "MountingHole", "MountingHole_3.2mm_M3", x, y, 0, value="M3")
 
-# JLCPCB для 2 слоёв сверлит от 0.3 мм. Тепловые отверстия под модулем в библиотечном
-# футпринте - 0.2 мм; раздаём до 0.3 (пад 0.6, пояс 0.15 - в норме).
-for _p in b.fps["U1"].Pads():
-    if _p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH and tomm(_p.GetDrillSize().x) < 0.3:
-        _p.SetDrillSize(pcbnew.VECTOR2I(mm(0.3), mm(0.3)))
+# J1 и J2 - только отверстия: гребёнку 2.54 мм (или провода) впаивают по месту, а не на
+# заводе. 3D-модели нет, в BOM и в файл установки (CPL) они не попадают.
+NOPART = ("J1", "J2")
+for _r in NOPART:
+    _f = b.fps[_r]
+    _f.Models().clear()
+    _f.SetAttributes(_f.GetAttributes() | pcbnew.FP_EXCLUDE_FROM_BOM | pcbnew.FP_EXCLUDE_FROM_POS_FILES)
+
 # MSOP-10: пады 0.35 при шаге 0.5 оставляют 0.15 мм - меньше штатного зазора 0.2.
 # Вывод корпуса VSSOP шириной 0.17...0.27 мм, пад 0.3 его с запасом накрывает.
 for _p in b.fps["U2"].Pads():
@@ -118,25 +89,22 @@ for _p in b.fps["U2"].Pads():
     _p.SetSize(pcbnew.VECTOR2I(_s.x, mm(0.3)))
 
 # -------------------------------------------------------------------- схема
-d = kigen.Design(NAME, "drain_watcher - INA228 + ESP32-S3, 70x50 mm, 2 layers", paper="A3")
+d = kigen.Design(NAME, "drain_watcher - INA228 I2C module, %.0fx%.0f mm, 2 layers" % (BW, BH), paper="A4")
 d.prepare()
-SCHAT = {"U1": (80, 110), "U2": (230, 90), "U3": (230, 200), "J1": (80, 220), "J2": (330, 90)}
-GX, GY, GDX, GDY, GROWS = 160.0, 40.0, 30.0, 30.0, 8
+SCHAT = {"U2": (120, 90), "J1": (50, 90), "J2": (230, 90)}
 small = [r for r in PARTS if r not in SCHAT]
 for ref, (lid, val, (fl, fn), nets, _) in PARTS.items():
     at = SCHAT.get(ref)
     if at is None:
         i = small.index(ref)
-        at = (300 + GDX * (i // GROWS), 140 + GDY * (i % GROWS))
-    d.add(kigen.Part(ref, lid, val, "%s:%s" % (fl, fn), nets, at=at))
-for i in range(len(HOLES)):
-    _h = kigen.Part("H%d" % (i + 1), "Mechanical:MountingHole", "M3",
-                    "MountingHole:MountingHole_3.2mm_M3", {}, at=(400 + 20 * i, 270))
-    _h.in_bom = False                       # у футпринта отверстия стоит "не в BOM"
-    d.add(_h)
-# +3V3 флаг не нужен: выход AP2112K сам power_out, второй источник ERC считает конфликтом
-for i, n in enumerate(["GND", "VBUS"]):
-    d.add(kigen.Part("#FLG%d" % i, "power:PWR_FLAG", "PWR_FLAG", "", {"1": n}, at=(160 + 30 * i, 270)))
+        at = (60 + 30 * (i % 6), 150 + 30 * (i // 6))
+    _pt = kigen.Part(ref, lid, val, "%s:%s" % (fl, fn), nets, at=at)
+    if ref in NOPART:
+        _pt.in_bom = False                  # только отверстия - деталью в BOM не считаются
+    d.add(_pt)
+# VCC приходит с гребёнки (пассивный вывод) - ERC нужен флаг источника; GND - тоже
+for i, n in enumerate(["GND", "VCC"]):
+    d.add(kigen.Part("#FLG%d" % i, "power:PWR_FLAG", "PWR_FLAG", "", {"1": n}, at=(240 + 25 * i, 170)))
 
 FPLIB = NAME
 for _pt in d.parts:
@@ -166,117 +134,40 @@ def pad_of(ref, net):
     raise KeyError((ref, net))
 
 
-# --- USB-C: пары D+/D- сведены перемычками на нижнем слое (пады чередуются через 0.5 мм)
-PY = P("J1", "A6")[1]
-YDP, YDM = PY - 2.4, PY - 1.2
-for pn in ("A6", "B6"):
-    x = P("J1", pn)[0]
-    T("USB_DP", [(x, PY), (x, YDP)], WN)
-    V("USB_DP", x, YDP, 0.45, 0.25)
-for pn in ("A7", "B7"):
-    x = P("J1", pn)[0]
-    T("USB_DM", [(x, PY), (x, YDM)], WN)
-    V("USB_DM", x, YDM, 0.45, 0.25)
-B("USB_DP", [(P("J1", "A6")[0], YDP), (P("J1", "B6")[0], YDP)], WN)
-B("USB_DM", [(P("J1", "B7")[0], YDM), (P("J1", "A7")[0], YDM)], WN)
-p13, p14 = P("U1", "13"), P("U1", "14")
-xm, xp = P("J1", "A7")[0], P("J1", "B6")[0]
-T("USB_DM", [(xm, YDM), (xm, p13[1] + 1.0), (p13[0], p13[1] + 0.6), p13], WN)
-T("USB_DP", [(xp, YDP), (xp, p14[1] + 2.85), (p14[0], p14[1] + 2.1), p14], WN)
-# CC: вверх к резисторам 5.1k, их земля - via над ними
-for pn, net, r in (("A5", "CC1", "R9"), ("B5", "CC2", "R10")):
-    x = P("J1", pn)[0]
-    T(net, [(x, PY), pad_of(r, net)], WN)
-    g = pad_of(r, "GND")
-    T("GND", [g, (g[0], g[1] - 1.7)], W)
-    V("GND", g[0], g[1] - 1.7)
-# земля разъёма - на ближайшие пады экрана (они сквозные и сидят на полигонах)
-for pn, sh in (("A1", -1), ("A12", 1)):
-    x = P("J1", pn)[0]
-    T("GND", [(x, PY), (JX + sh * 4.32, PY + 0.45)], WP)
-# VBUS: левый пад вверх, правый - вверх и через нижний слой к левому
-YVB = 137.8
-xl, xr = P("J1", "A4")[0], P("J1", "A9")[0]
-T("VBUS", [(xl, PY), (xl, YVB)], WP)
-V("VBUS", xl, YVB)
-T("VBUS", [(xr, PY), (xr, PY - 1.25), (xr + 0.65, PY - 1.9), (xr + 0.65, YVB)], WP)
-V("VBUS", xr + 0.65, YVB)
-B("VBUS", [(xl, YVB), (xr + 0.65, YVB)], WP)
-# VBUS -> C4 -> U3 (VIN и EN вместе)
-vin, ven = P("U3", "1"), P("U3", "3")
-XJ = vin[0] + 1.15
-T("VBUS", [(xl, YVB), (XJ, YVB)], WP)
-T("VBUS", [(XJ, ven[1]), (XJ, vin[1])], WP)
-T("VBUS", [ven, (XJ, ven[1])], WP)
-T("VBUS", [vin, (XJ, vin[1])], WP)
-g = pad_of("C4", "GND")
-T("GND", [g, (g[0], g[1] - 1.4)], W)
-V("GND", g[0], g[1] - 1.4)
-# земля стабилизатора - via под корпусом
-g = P("U3", "2")
-T("GND", [g, (114.5, g[1])], W)
-V("GND", 114.5, g[1], 0.5, 0.25)
-
-# --- +3V3: выход стабилизатора -> C5 -> вверх по x=108.76 через C6, C7 к выводу 2 модуля
-vo = P("U3", "5")
-p2 = P("U1", "2")
-T("+3V3", [vo, (p2[0], vo[1]), p2], WP)
-g = pad_of("C5", "GND")
-T("GND", [g, (g[0], g[1] + 1.25)], W)
-V("GND", g[0], g[1] + 1.25)
-g = pad_of("C6", "GND")
-T("GND", [g, (g[0], g[1] + 1.4)], W)
-V("GND", g[0], g[1] + 1.4)
-g, p1 = pad_of("C7", "GND"), P("U1", "1")
-T("GND", [g, (g[0], g[1] - 1.2), (p1[0], g[1] - 1.5), p1], W)
-# магистраль +3V3 по нижнему слою (под модулем): к подтяжкам EN, I2C и к INA228
-YT = 127.5
-XV3 = 109.6
-V("+3V3", XV3, vo[1])
-B("+3V3", [(XV3, vo[1]), (XV3, YT), (142.125, YT)], WP)
-r7 = pad_of("R7", "+3V3")
-V("+3V3", r7[0], r7[1] + 1.25)
-T("+3V3", [r7, (r7[0], r7[1] + 1.25)], W)
-B("+3V3", [(r7[0], r7[1] + 1.25), (r7[0], YT)], W)
-
-# --- EN: RC 10k / 1uF
-p3 = P("U1", "3")
-YEN = 132.6
-T("EN", [p3, (p3[0], YEN), (pad_of("R7", "EN")[0], YEN), pad_of("R7", "EN")], W)
-T("EN", [(pad_of("C8", "EN")[0], YEN), pad_of("C8", "EN")], W)
-g = pad_of("C8", "GND")
-T("GND", [g, (g[0], g[1] + 1.25)], W)
-V("GND", g[0], g[1] + 1.25)
-
 # --- INA228: адрес 0x40 (A0 = A1 = GND) - via под корпусом
 a1, a0 = P("U2", "1"), P("U2", "2")
 T("GND", [a1, (a1[0] + 1.1, a1[1]), (a0[0] + 1.1, a0[1]), a0], W)
 T("GND", [(a1[0] + 1.1, (a1[1] + a0[1]) / 2), (a1[0] + 1.7, (a1[1] + a0[1]) / 2)], W)
 V("GND", a1[0] + 1.7, (a1[1] + a0[1]) / 2, 0.5, 0.25)
-# GND вывод 7 -> C3, VS вывод 6 -> C3 -> via в магистраль
+# GND вывод 7 -> C3, VS вывод 6 -> C3 -> via на нижний слой (VCC идёт по низу)
 g7, vs = P("U2", "7"), P("U2", "6")
-c3g, c3v = pad_of("C3", "GND"), pad_of("C3", "+3V3")
+c3g, c3v = pad_of("C3", "GND"), pad_of("C3", "VCC")
 T("GND", [g7, (g7[0] + 1.2, g7[1]), (g7[0] + 1.2, c3g[1] - 0.5), c3g], W)
 T("GND", [c3g, (c3g[0] + 1.2, c3g[1])], W)
 V("GND", c3g[0] + 1.2, c3g[1])
-T("+3V3", [vs, (vs[0], c3v[1]), c3v, (c3v[0], YT - 0.8)], W)
-V("+3V3", c3v[0], YT - 0.8)
-B("+3V3", [(c3v[0], YT - 0.8), (c3v[0], YT)], WP)
+YVC = HY                                    # VCC по нижнему слою - на уровне вывода 1 J1
+T("VCC", [vs, (vs[0], c3v[1]), c3v, (c3v[0], c3v[1] + 1.4)], W)
+V("VCC", c3v[0], c3v[1] + 1.4)
+B("VCC", [(c3v[0], c3v[1] + 1.4), (c3v[0], YVC), P("J1", "1")], WP)
 
-# --- I2C и ALERT к правому ряду модуля
+# --- I2C и ALERT: от гребёнки горизонталями, у INA228 - ступенькой на её выводы
 al, sda, scl = P("U2", "3"), P("U2", "4"), P("U2", "5")
-pa, pd, pc = P("U1", "23"), P("U1", "21"), P("U1", "20")
-T("ALERT", [al, (136.2, al[1]), (136.2, pa[1]), pa], W)
-T("SDA", [sda, (135.4, sda[1]), (134.3, pd[1]), pd], W)
-T("SCL", [scl, (135.0, scl[1]), (134.6, pc[1]), pc], W)
-r5 = pad_of("R5", "+3V3")
-T("+3V3", [r5, (r5[0] + 1.3, r5[1])], W)
-V("+3V3", r5[0] + 1.3, r5[1])
-B("+3V3", [(r5[0] + 1.3, r5[1]), (r5[0] + 1.3, YT)], W)
-r4 = pad_of("R4", "+3V3")
-T("+3V3", [r4, (r4[0], r4[1] + 1.35)], W)
-V("+3V3", r4[0], r4[1] + 1.35)
-B("+3V3", [(r4[0], r4[1] + 1.35), (r4[0], YT)], W)
+ja, jd, jc = P("J1", "5"), P("J1", "4"), P("J1", "3")
+T("ALERT", [ja, (UX - 3.6, ja[1]), (UX - 3.6, al[1]), al], W)
+T("SDA", [jd, (UX - 4.3, jd[1]), (UX - 4.3, sda[1]), sda], W)
+T("SCL", [jc, (UX - 5.0, jc[1]), (UX - 5.0, scl[1]), scl], W)
+# подтяжки: свободный пад - на VCC через via; по низу - общая шина VCC
+XBV = HX + 1.6                               # вертикаль шины VCC по нижнему слою
+r6, r5, r4 = pad_of("R6", "VCC"), pad_of("R5", "VCC"), pad_of("R4", "VCC")
+v6 = (r6[0], r6[1] - 1.3)
+v5 = (r5[0] + 1.1, r5[1])
+v4 = (r4[0], r4[1] + 1.35)
+T("VCC", [r6, v6], W); V("VCC", *v6)
+T("VCC", [r5, v5], W); V("VCC", *v5)
+T("VCC", [r4, v4], W); V("VCC", *v4)
+B("VCC", [(XBV, YVC), (XBV, v6[1]), v6], 0.3)
+B("VCC", [(XBV, v5[1]), v5], 0.3)
+B("VCC", [(XBV, v4[1]), v4], 0.3)
 
 # --- вход измерения: Kelvin-пара от клеммы через RC-фильтр
 inp, inn = P("U2", "10"), P("U2", "9")
@@ -287,8 +178,8 @@ T("INP", [(c1p[0], r1i[1]), c1p], W)
 T("INN", [r2i, (c1n[0], r2i[1]), (c1n[0], inn[1]), inn], W)
 j1, j2 = P("J2", "1"), P("J2", "2")
 r1s, r2s = pad_of("R1", "SNS_P"), pad_of("R2", "SNS_N")
-T("SNS_P", [j1, (152.0, j1[1]), (149.0, j1[1] + 3.0), (149.0, r1s[1]), r1s], W)
-T("SNS_N", [j2, (152.5, j2[1]), (150.2, r2s[1]), r2s], W)
+T("SNS_P", [j1, (UX + 9.0, j1[1]), (UX + 9.0, r1s[1]), r1s], W)
+T("SNS_N", [j2, (UX + 10.0, j2[1]), (UX + 10.0, r2s[1]), r2s], W)
 d1p, d1n = pad_of("D1", "SNS_P"), pad_of("D1", "SNS_N")
 T("SNS_P", [(d1p[0], j1[1]), d1p], W)
 T("SNS_N", [(d1n[0], j2[1]), d1n], W)
@@ -298,64 +189,210 @@ j4 = P("J2", "4")
 r3b, r3s = pad_of("R3", "VBAT"), pad_of("R3", "VBUS_S")
 vb = P("U2", "8")
 T("VBAT", [j4, r3b], WP)
-T("VBUS_S", [r3s, (150.0, r3s[1]), (150.0, vb[1]), vb], W)
-T("VBUS_S", [pad_of("D2", "VBUS_S"), (pad_of("D2", "VBUS_S")[0], r3s[1])], W)
+XVS = r3s[0]                                 # полоса VBUS_S - прямо над R3
+T("VBUS_S", [r3s, (XVS, r3s[1]), (XVS, vb[1]), vb], W)
+d2v = pad_of("D2", "VBUS_S")
+T("VBUS_S", [d2v, (XVS, d2v[1])], W)
 g = pad_of("D2", "GND")
-T("GND", [g, (g[0], g[1] + 1.4)], W)
-V("GND", g[0], g[1] + 1.4)
+T("GND", [g, (g[0] + 1.2, g[1] - 0.8)], W)
+V("GND", g[0] + 1.2, g[1] - 0.8)
 g = pad_of("C2", "GND")
 T("GND", [g, (g[0], g[1] + 1.3)], W)
 V("GND", g[0], g[1] + 1.3)
 
-# --- кнопки (сигнал на нижние пады, земля - верхние) и светодиод
-for ref in ("SW1", "SW2", "SW3"):
-    fp = b.fps[ref]
-    cx = tomm(fp.GetPosition().x)
-    sig = PARTS[ref][3]["2"]
-    pads2 = sorted(tomm(p_.GetPosition().x) for p_ in fp.Pads() if p_.GetNumber() == "2")
-    pads1 = sorted(tomm(p_.GetPosition().x) for p_ in fp.Pads() if p_.GetNumber() == "1")
-    y2 = tomm([p_ for p_ in fp.Pads() if p_.GetNumber() == "2"][0].GetPosition().y)
-    y1 = tomm([p_ for p_ in fp.Pads() if p_.GetNumber() == "1"][0].GetPosition().y)
-    T(sig, [(pads2[0], y2), (pads2[1], y2)], W)
-    T("GND", [(pads1[0], y1), (pads1[1], y1)], W)
-    T("GND", [(cx, y1), (cx, y1 - 1.5)], W)
-    V("GND", cx, y1 - 1.5)
-sw1y = 107.85
-m1 = P("U1", "34")
-T("MARK1", [m1, (m1[0], sw1y)], W)
-m2 = P("U1", "31")
-T("MARK2", [m2, (m2[0], 109.6), (119.9, 108.6), (119.9, sw1y)], W)
-bt = P("U1", "27")
-T("BOOT", [bt, (bt[0], 110.6), (130.9, 110.6), (130.9, sw1y)], W)
-led = P("U1", "35")
-r8l = pad_of("R8", "LED")
-T("LED", [led, (led[0], 111.4), r8l], W)
-T("LED_A", [pad_of("R8", "LED_A"), pad_of("D3", "LED_A")], W)
-dk, p40 = pad_of("D3", "GND"), P("U1", "40")
-T("GND", [dk, (p40[0], dk[1] + 0.6), p40], W)
-
 # -------------------------------------------------- контур, полигоны, шелк
-b.edge_rect(X0 + BW / 2, Y0 + BH / 2, BW, BH, 3.0)
+b.edge_rect(X0 + BW / 2, Y0 + BH / 2, BW, BH, 1.0)
 b.zone("GND", FCU, X0 + BW / 2, Y0 + BH / 2, BW - 0.6, BH - 0.6)
 b.zone("GND", BCU, X0 + BW / 2, Y0 + BH / 2, BW - 0.6, BH - 0.6)
 
 SZ, TH = 0.8, 0.15
-# подписи клеммы - в полосе между падами и проёмами под провод, свободной от шелка корпуса
-for i, lbl in enumerate(("S+", "S-", "GND", "BAT")):
-    x, y = P("J2", str(i + 1))
-    b.text(lbl, x + 3.8, y, size=SZ, thick=TH)
-for ref, lbl in (("SW1", "MARK1"), ("SW2", "MARK2"), ("SW3", "BOOT")):
-    fp = b.fps[ref]
-    b.text(lbl, tomm(fp.GetPosition().x), 101.4, size=SZ, thick=TH)
-b.text("DRAIN WATCHER", 150.0, 140.0, size=1.5, thick=0.25)
-b.text("INA228 / ESP32-S3", 150.0, 142.4, size=SZ, thick=TH)
-b.text("USB: powerbank / flashing", 150.0, 144.2, size=SZ, thick=TH)
 BS = pcbnew.B_SilkS
-for i, line in enumerate(("drain_watcher v1",
-                          "SNS+ chassis side, SNS-/GND battery side",
-                          "BAT+ via 1A fuse. Bridge shunt to crank!")):
-    b.text(line, 146.0, 131.3 + 1.8 * i, layer=BS, size=1.0 if i == 0 else SZ,
-           thick=0.2 if i == 0 else TH, mirror=True)
+# Подписи проводов - повёрнуты на 90 (так их развернули вручную в KiCad) и стоят узкой
+# полосой между диодами и отверстиями, с обеих сторон.
+# Подписи гребёнки - только на обороте, справа от выводов: слева от J1 плата обрезана.
+for i, lbl in enumerate(("SNS+", "SNS-", "GND", "BAT+")):
+    x, y = P("J2", str(i + 1))
+    # BAT+ чуть выше и левее - у нижнего края платы (выставлено вручную)
+    dx, dy = (-2.28, -0.44) if lbl == "BAT+" else (-2.1, 0.0)
+    b.text(lbl, x + dx, y + dy, size=SZ, thick=TH, rot=90)
+    b.text(lbl, x + dx, y + dy, layer=BS, size=0.9, thick=0.18, rot=90, mirror=True)
+for i, lbl in enumerate(("VCC", "GND", "SCL", "SDA", "ALERT")):
+    x, y = P("J1", str(i + 1))
+    dx = 3.79 if lbl == "ALERT" else 3.24   # длинное ALERT - чуть правее, чтобы не лезть на пад
+    b.text(lbl, x + dx, y, layer=BS, size=SZ, thick=TH, mirror=True)
+
+
+def _bot_obstacles():
+    obs = []
+    for _fp in b.b.GetFootprints():
+        for _p in _fp.Pads():
+            ls = _p.GetLayerSet()
+            if ls.Contains(pcbnew.B_Cu) or _p.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH:
+                bb = _p.GetBoundingBox()
+                obs.append((tomm(bb.GetLeft()), tomm(bb.GetTop()), tomm(bb.GetRight()), tomm(bb.GetBottom())))
+    # via закрыты маской (tented) - шелк поверх них печатается, они не помеха
+    for _d in b.b.GetDrawings():
+        if _d.GetClass() == "PCB_TEXT" and _d.GetLayer() == BS:
+            bb = _d.GetBoundingBox()            # с учётом поворота
+            obs.append((tomm(bb.GetLeft()), tomm(bb.GetTop()), tomm(bb.GetRight()), tomm(bb.GetBottom())))
+    return obs
+
+
+def back_block(lines, anchor, pitch=1.25, size=SZ, thick=TH, first=None):
+    """Столбец строк на B.Silkscreen по центру x; ищет ближайшее к anchor свободное место."""
+    obs = _bot_obstacles()
+    ts = []
+    for i, ln in enumerate(lines):
+        sz, th = (first if (first and i == 0) else (size, thick))
+        ts.append(b.text(ln, 0, 0, layer=BS, size=sz, thick=th, mirror=True))
+    # шаг строк - не меньше габарита надписи, иначе соседние строки слипаются
+    hs = [tomm(kicadenv.textbox(t).GetHeight()) for t in ts]
+    offs = [0.0]
+    for i in range(1, len(ts)):
+        offs.append(offs[-1] + max(pitch, (hs[i - 1] + hs[i]) / 2 + 0.1))
+    cands = sorted(((X0 + 1.0 + 0.25 * i, Y0 + 1.0 + 0.25 * j)
+                    for i in range(int((BW - 2) / 0.25)) for j in range(int((BH - 2) / 0.25))),
+                   key=lambda p_: (p_[0] - anchor[0]) ** 2 + (p_[1] - anchor[1]) ** 2)
+    for cx, cy in cands:
+        ok = True
+        boxes = []
+        for i, t in enumerate(ts):
+            t.SetPosition(pcbnew.VECTOR2I(mm(cx), mm(cy + offs[i])))
+            bb = kicadenv.textbox(t)
+            bx = (tomm(bb.GetLeft()), tomm(bb.GetTop()), tomm(bb.GetRight()), tomm(bb.GetBottom()))
+            if bx[0] < X0 + 0.6 or bx[2] > X1 - 0.6 or bx[1] < Y0 + 0.6 or bx[3] > Y1 - 0.6                     or any(_hit(bx, o, 0.25) for o in obs):
+                ok = False
+                break
+        if ok:
+            return (cx, cy)
+    for t in ts:
+        b.b.Remove(t)
+    print("  на обратной стороне нет места для блока:", lines[0])
+    return None
+
+
+def _hit(a, c, m=0.15):
+    return a[0] < c[2] + m and c[0] < a[2] + m and a[1] < c[3] + m and c[1] < a[3] + m
+
+
+# Легенда номиналов: детали с одинаковым номиналом - через запятую, затем номинал.
+_byval = {}
+for _r, (_lid, _val, _fpid, _n, _xy) in PARTS.items():
+    if _r.startswith("J"):                  # разъёмы подписаны у самих выводов
+        continue
+    _byval.setdefault(_val, []).append(_r)
+_key = lambda r: (re.match(r"[A-Z]+", r).group(0), int(re.search(r"\d+", r).group(0)))
+LEGEND = ["%s: %s" % (",".join(sorted(rs, key=_key)), v)
+          for v, rs in sorted(_byval.items(), key=lambda kv: _key(sorted(kv[1], key=_key)[0]))]
+
+
+def back_group(items, anchor):
+    """Группа надписей на B.Silkscreen с относительными смещениями; ищет ближайшее к
+    anchor место, где ни одна надпись не ложится на пад, via или отверстие.
+    items: (текст, dx, dy, угол, размер, толщина)."""
+    obs = _bot_obstacles()
+    ts = [(b.text(t, 0, 0, layer=BS, size=sz, thick=th, rot=a, mirror=True), dx, dy)
+          for t, dx, dy, a, sz, th in items]
+    cands = sorted(((X0 + 1.0 + 0.25 * i, Y0 + 1.0 + 0.25 * j)
+                    for i in range(int((BW - 2) / 0.25)) for j in range(int((BH - 2) / 0.25))),
+                   key=lambda p_: (p_[0] - anchor[0]) ** 2 + (p_[1] - anchor[1]) ** 2)
+    for cx, cy in cands:
+        ok = True
+        for t, dx, dy in ts:
+            t.SetPosition(pcbnew.VECTOR2I(mm(cx + dx), mm(cy + dy)))
+            bb = t.GetBoundingBox()             # с учётом поворота, в отличие от textbox
+            bx = (tomm(bb.GetLeft()), tomm(bb.GetTop()), tomm(bb.GetRight()), tomm(bb.GetBottom()))
+            if bx[0] < X0 + 0.6 or bx[2] > X1 - 0.6 or bx[1] < Y0 + 0.6 or bx[3] > Y1 - 0.6                     or any(_hit(bx, o, 0.2) for o in obs):
+                ok = False
+                break
+        if ok:
+            return (cx, cy)
+    xs, ys = [], []
+    for t, dx, dy in ts:
+        t.SetPosition(pcbnew.VECTOR2I(mm(anchor[0] + dx), mm(anchor[1] + dy)))
+        bb = t.GetBoundingBox()
+        xs += [tomm(bb.GetLeft()), tomm(bb.GetRight())]
+        ys += [tomm(bb.GetTop()), tomm(bb.GetBottom())]
+    print("  на обратной стороне нет места для группы надписей %.1f x %.1f мм (%s)"
+          % (max(xs) - min(xs), max(ys) - min(ys), items[0][0]))
+    return None
+
+
+def _size(txt, sz, th, a=0):
+    t = b.text(txt, 0, 0, layer=BS, size=sz, thick=th, rot=a, mirror=True)
+    bb = kicadenv.textbox(t)
+    w, h = tomm(bb.GetWidth()), tomm(bb.GetHeight())
+    b.b.Remove(t)
+    return w, h
+
+
+# Обратная сторона - компоновка, выставленная вручную в KiCad: легенда номиналов
+# строками по центру, под ней ASTechLab и DRAIN WATCHER. Текст легенды берётся из
+# PARTS, так что при смене номинала он обновится сам; места - фиксированные.
+LSZ, LTH = 1.0, 0.18
+_legend = sorted(LEGEND, key=lambda l: (not l.startswith("U"), l))   # микросхема - первой
+LEG_Y = (116.805, 118.185, 119.67, 121.12, 122.47, 123.92, 125.3)
+assert len(_legend) <= len(LEG_Y), "легенда выросла - добавьте строк в LEG_Y"
+for _l, _y in zip(_legend, LEG_Y):
+    b.text(_l, 138.3, _y, layer=BS, size=LSZ, thick=LTH, mirror=True)
+b.text("ASTechLab", 138.46, 127.78, layer=BS, size=2.0, thick=0.5, mirror=True)
+b.text("DRAIN WATCHER", 137.52, 131.16, layer=BS, size=1.5, thick=0.375, mirror=True)
+
+
+def stack(lines, anchor, rot=0, front=False):
+    its, y = [], 0.0
+    for t_, sz_, th_ in lines:
+        h_ = _size(t_, sz_, th_)[1]
+        if rot:
+            its.append((t_, y + h_ / 2, 0.0, rot, sz_, th_))
+        else:
+            its.append((t_, 0.0, y + h_ / 2, 0, sz_, th_))
+        y += h_ + 0.15
+    return (front_group if front else back_group)(its, anchor)
+
+
+def front_group(items, anchor):
+    """То же, что back_group, но на лицевой стороне: заняты пады, корпуса деталей и надписи."""
+    obs = []
+    for _fp in b.b.GetFootprints():
+        for _p in _fp.Pads():
+            if _p.GetLayerSet().Contains(FCU) or _p.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH:
+                bb = _p.GetBoundingBox()
+                obs.append((tomm(bb.GetLeft()), tomm(bb.GetTop()), tomm(bb.GetRight()), tomm(bb.GetBottom())))
+        _cy = _fp.GetCourtyard(pcbnew.F_CrtYd)
+        if _cy.OutlineCount():
+            bb = _cy.BBox()
+            obs.append((tomm(bb.GetLeft()), tomm(bb.GetTop()), tomm(bb.GetRight()), tomm(bb.GetBottom())))
+    for _d in b.b.GetDrawings():
+        if _d.GetClass() == "PCB_TEXT" and _d.GetLayer() == pcbnew.F_SilkS:
+            bb = _d.GetBoundingBox()
+            obs.append((tomm(bb.GetLeft()), tomm(bb.GetTop()), tomm(bb.GetRight()), tomm(bb.GetBottom())))
+    ts = [(b.text(t, 0, 0, size=sz, thick=th, rot=a), dx, dy) for t, dx, dy, a, sz, th in items]
+    cands = sorted(((X0 + 1.0 + 0.25 * i, Y0 + 1.0 + 0.25 * j)
+                    for i in range(int((BW - 2) / 0.25)) for j in range(int((BH - 2) / 0.25))),
+                   key=lambda p_: (p_[0] - anchor[0]) ** 2 + (p_[1] - anchor[1]) ** 2)
+    for cx, cy in cands:
+        ok = True
+        for t, dx, dy in ts:
+            t.SetPosition(pcbnew.VECTOR2I(mm(cx + dx), mm(cy + dy)))
+            bb = t.GetBoundingBox()
+            bx = (tomm(bb.GetLeft()), tomm(bb.GetTop()), tomm(bb.GetRight()), tomm(bb.GetBottom()))
+            if bx[0] < X0 + 0.6 or bx[2] > X1 - 0.6 or bx[1] < Y0 + 0.6 or bx[3] > Y1 - 0.6 \
+                    or any(_hit(bx, o, 0.2) for o in obs):
+                ok = False
+                break
+        if ok:
+            return (cx, cy)
+    print("  на лицевой стороне нет места для надписи:", items[0][0])
+    return None
+
+
+# Лицевая сторона: правило для провода BAT+ и шунт, под который рассчитана плата.
+# Шкала - до ~35 А при незаведённой машине: шунт 30 А / 75 мВ = 2.5 мОм, INA228 в
+# широком диапазоне меряет до ~65 А, в узком (до ~16 А) - с шагом ~31 мкА.
+b.text("BAT+ via 1A fuse", 135.5, 116.39, size=SZ, thick=TH)
+b.text("4 terminal shunt\n2.5 mOhm 30A 75mV", 135.36, 130.0, size=SZ, thick=TH)
+print("легенда номиналов: %d строк" % len(LEGEND))
 
 # Обозначения деталей: шрифт по нормам JLCPCB (0.8 / 0.15). Место для каждого ищется
 # перебором вокруг детали: занятыми считаются пады, корпуса (courtyard) других деталей,
@@ -385,7 +422,12 @@ for _d in b.b.GetDrawings():
 for _t in b.b.GetTracks():
     if _t.GetClass() == "PCB_VIA":
         OBST.append(("via", _box(_t)))
-REF_FIX = {"J2": (163.0, 108.6, 0), "U1": (118.0, 117.0, 0), "J1": (JX, 148.6, 0)}
+# Положения обозначений, выставленные вручную в KiCad (x, y, угол[, размер])
+REF_FIX = {"C1": (137.78, 119.25, 0), "C2": (140.39, 123.22, 0), "C3": (135.175, 125.3, 0),
+           "D1": (145.57, 121.84, 0), "D2": (145.63, 128.31, 0),
+           "R1": (142.08, 116.76, 0), "R2": (140.26, 121.71, 0), "R3": (145.62, 130.61, 0),
+           "R4": (130.11, 124.77, 0), "R5": (131.42, 120.68, 0), "R6": (129.79, 117.67, 0),
+           "U2": (135.4, 119.305, 0), "J1": (125.49, 131.69, 0)}
 
 
 def place_ref(fp):
@@ -393,12 +435,14 @@ def place_ref(fp):
     t.SetTextSize(pcbnew.VECTOR2I(mm(SZ), mm(SZ)))
     t.SetTextThickness(mm(TH))
     ref = fp.GetReference()
-    if ref.startswith("H"):
+    if ref.startswith("H") or ref == "J2":      # у проводов - свои подписи
         t.SetVisible(False)
         return
     t.SetVisible(True)
     if ref in REF_FIX:
-        x, y, a = REF_FIX[ref]
+        x, y, a = REF_FIX[ref][:3]
+        if len(REF_FIX[ref]) > 3:
+            t.SetTextSize(pcbnew.VECTOR2I(mm(REF_FIX[ref][3]), mm(REF_FIX[ref][3])))
         t.SetTextAngleDegrees(a)
         t.SetPosition(pcbnew.VECTOR2I(mm(x), mm(y)))
         OBST.append(("text", _box(t)))
@@ -432,16 +476,12 @@ def place_ref(fp):
 for _fp in sorted(b.b.GetFootprints(), key=lambda f: f.GetReference()):
     place_ref(_fp)
 
-# земляные пады USB-C - сплошным соединением
-for _p in b.fps["J1"].Pads():
-    if _p.GetNetname() == "GND":
-        b.pad_zone_connection(_p, pcbnew.ZONE_CONNECTION_FULL)
-
+# J2 - это уже не клемма, а четыре отверстия под провода, у каждого своя подпись.
+# Надпись ${REFERENCE} на слое сборки (F.Fab) между отверстиями только путает - убираем.
 # (в самом конце: после Remove() SWIG в KiCad 10 теряет типы у прокси-объектов)
-# Антенна модуля стоит вровень с краем платы - шелк корпуса за контуром не печатается.
-for _g in list(b.fps["U1"].GraphicalItems()):
-    if _g.GetLayer() == pcbnew.F_SilkS and tomm(_g.GetBoundingBox().GetLeft()) < X0 + 0.2:
-        b.fps["U1"].Remove(_g)
+for _g in list(b.fps["J2"].GraphicalItems()):
+    if _g.GetClass() == "PCB_TEXT" and _g.GetLayer() == pcbnew.F_Fab:
+        b.fps["J2"].Remove(_g)
 
 # ------------------------------------------------ своя библиотека футпринтов
 LIBDIR = os.path.join(OUT, FPLIB + ".pretty")
@@ -491,8 +531,6 @@ _ds = _d.setdefault("board", {}).setdefault("design_settings", {})
 _ds.setdefault("rules", {}).update({"min_track_width": 0.15, "min_clearance": 0.2,
                                      "min_via_diameter": 0.45, "min_through_hole_diameter": 0.25,
                                      "min_copper_edge_clearance": 0.3,
-                                     # via 0.45/0.3 у USB-C: JLCPCB считает предпочтительным
-                                     # минимумом via отверстие + 0.15 мм, то есть пояс 0.075
-                                     "min_via_annular_width": 0.075})
+                                     "min_via_annular_width": 0.1})
 json.dump(_d, open(_pro, "w"), indent=2)
 print("OK ->", OUT)
