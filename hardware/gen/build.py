@@ -216,10 +216,11 @@ for i, lbl in enumerate(("SNS+", "SNS-", "GND", "BAT+")):
     dx, dy = (-2.28, -0.44) if lbl == "BAT+" else (-2.1, 0.0)
     b.text(lbl, x + dx, y + dy, size=SZ, thick=TH, rot=90)
     b.text(lbl, x + dx, y + dy, layer=BS, size=0.9, thick=0.18, rot=90, mirror=True)
-for i, lbl in enumerate(("VCC", "GND", "SCL", "SDA", "ALERT")):
-    x, y = P("J1", str(i + 1))
-    dx = 3.79 if lbl == "ALERT" else 3.24   # длинное ALERT - чуть правее, чтобы не лезть на пад
-    b.text(lbl, x + dx, y, layer=BS, size=SZ, thick=TH, mirror=True)
+# подписи гребёнки - шрифт 1.0 / 0.25, положения выставлены вручную в KiCad
+HDRLBL = {"VCC": (128.88, 129.06), "GND": (128.97, 126.5), "SCL": (128.91, 123.91),
+          "SDA": (129.06, 121.38), "ALERT": (129.7, 118.83)}
+for lbl, (x, y) in HDRLBL.items():
+    b.text(lbl, x, y, layer=BS, size=1.0, thick=0.25, mirror=True)
 
 
 def _bot_obstacles():
@@ -391,7 +392,7 @@ def front_group(items, anchor):
 # Шкала - до ~35 А при незаведённой машине: шунт 30 А / 75 мВ = 2.5 мОм, INA228 в
 # широком диапазоне меряет до ~65 А, в узком (до ~16 А) - с шагом ~31 мкА.
 b.text("BAT+ via 1A fuse", 135.5, 116.39, size=SZ, thick=TH)
-b.text("4 terminal shunt\n2.5 mOhm 30A 75mV", 135.36, 130.0, size=SZ, thick=TH)
+b.text("4 terminal shunt\n2.5 mOhm\n30A 75mV", 134.84, 130.03, size=1.0, thick=0.25)
 print("легенда номиналов: %d строк" % len(LEGEND))
 
 # Обозначения деталей: шрифт по нормам JLCPCB (0.8 / 0.15). Место для каждого ищется
@@ -424,10 +425,10 @@ for _t in b.b.GetTracks():
         OBST.append(("via", _box(_t)))
 # Положения обозначений, выставленные вручную в KiCad (x, y, угол[, размер])
 REF_FIX = {"C1": (137.78, 119.25, 0), "C2": (140.39, 123.22, 0), "C3": (135.175, 125.3, 0),
-           "D1": (145.57, 121.84, 0), "D2": (145.63, 128.31, 0),
-           "R1": (142.08, 116.76, 0), "R2": (140.26, 121.71, 0), "R3": (145.62, 130.61, 0),
+           "D1": (145.56, 121.97, 0, 1.0, 0.25), "D2": (145.65, 128.55, 0, 1.0, 0.25),
+           "R1": (142.08, 116.76, 0), "R2": (140.26, 121.71, 0), "R3": (145.76, 130.6, 0, 1.0, 0.25),
            "R4": (130.11, 124.77, 0), "R5": (131.42, 120.68, 0), "R6": (129.79, 117.67, 0),
-           "U2": (135.4, 119.305, 0), "J1": (125.49, 131.69, 0)}
+           "U2": (135.4, 119.305, 0), "J1": (125.53, 131.65, 0, 1.0, 0.25)}
 
 
 def place_ref(fp):
@@ -443,6 +444,8 @@ def place_ref(fp):
         x, y, a = REF_FIX[ref][:3]
         if len(REF_FIX[ref]) > 3:
             t.SetTextSize(pcbnew.VECTOR2I(mm(REF_FIX[ref][3]), mm(REF_FIX[ref][3])))
+        if len(REF_FIX[ref]) > 4:
+            t.SetTextThickness(mm(REF_FIX[ref][4]))
         t.SetTextAngleDegrees(a)
         t.SetPosition(pcbnew.VECTOR2I(mm(x), mm(y)))
         OBST.append(("text", _box(t)))
