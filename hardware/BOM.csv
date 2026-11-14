@@ -1,5 +1,5 @@
 Comment,Designator,Footprint,LCSC Part #,Qty,Note
-100nF,"C1,C12,C2,C3,C7,C9",drain_watcher:C_0603_1608Metric,C14663,6,проверить наличие на складе
+100nF,"C1,C11,C12,C2,C3,C7,C9",drain_watcher:C_0603_1608Metric,C14663,7,проверить наличие на складе
 1uF,C8,drain_watcher:C_0603_1608Metric,C15849,1,проверить наличие на складе
 10uF,"C10,C15,C16",drain_watcher:C_0805_2012Metric,C15850,3,проверить наличие на складе
 22uF,"C13,C14",drain_watcher:C_0805_2012Metric,C45783,2,проверить наличие на складе
@@ -7,6 +7,7 @@ B5819W,"D4,D6,D7",drain_watcher:D_SOD-123,C8598,3,проверить налич�
 SMF24A,"D2,D5",drain_watcher:D_SOD-123F,C3035828,2,проверить наличие на складе
 SMF24CA,D1,drain_watcher:D_SOD-123F,C3035829,1,проверить наличие на складе
 ESP32-S3-WROOM-1-N8R2,U1,drain_watcher:ESP32-S3-WROOM-1,C2913204,1,проверить наличие на складе; подойдёт ESP32-S3-WROOM-1-N8 (C2913198); N16R8 - нет: восьмибитная PSRAM занимает IO35-IO37
+ICS-43434,MK1,drain_watcher:InvenSense_ICS-43434-6_3.5x2.65mm,C5656610,1,"проверить наличие на складе; снят с производства (EOL), склад мал - проверить; иначе не ставить и паять вручную"
 WS2812B-2020,D3,drain_watcher:LED_WS2812B-2020_PLCC4_2.0x2.0mm,C965555,1,проверить наличие на складе
 4.7uH,L1,drain_watcher:L_Sunlord_SWPA4030S,C57269,1,проверить наличие на складе
 INA228AIDGSR,U2,drain_watcher:MSOP-10_3x3mm_P0.5mm,C2887910,1,проверить наличие на складе

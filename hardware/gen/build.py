@@ -63,6 +63,11 @@ ESP_NETS = {"1": "GND", "40": "GND", "41": "GND", "2": "+3V3", "3": "EN",
             "20": "SCL",        # IO12
             "23": "ALERT",      # IO21, подтяжка - внутренняя
             "25": "LED_DIN",    # IO48 - как RGB-светодиод на DevKitC-1
+            # I2S-микрофон: ближайшие к нему свободные выводы правого ряда (не
+            # стартовые IO45/IO46/IO3)
+            "24": "MIC_SD",     # IO47
+            "22": "MIC_WS",     # IO14
+            "19": "MIC_SCK",    # IO11
             "27": "BOOT"}       # IO0
 for _pn, _n in HDR:
     if _pn:
@@ -129,6 +134,14 @@ PARTS = {
     "D3": ("LED:WS2812B-2020", "WS2812B-2020", ("LED_SMD", "LED_WS2812B-2020_PLCC4_2.0x2.0mm"),
            {"2": "GND", "3": "LED_DIN", "4": "+5V"}, (128.6, 115.2, 0)),
     "C9": ("Device:C", "100nF", C0603, {"1": "+5V", "2": "GND"}, (128.6, 117.9, 0)),
+    # --- I2S-микрофон, как в Voice-Unit: ICS-43434 (DS-000069, табл. 8): 1 WS, 2 LR,
+    # 3 GND, 4 SCK, 5 VDD, 6 SD. LR = GND - левый канал (моно). Звуковой порт снизу:
+    # в футпринте под ним отверстие 0.5 мм, слышит плата через него с обратной стороны.
+    # SD по даташиту требует 100k вниз - встроенная подтяжка GPIO в прошивке.
+    "MK1": ("Sensor_Audio:ICS-43434", "ICS-43434", ("Sensor_Audio", "InvenSense_ICS-43434-6_3.5x2.65mm"),
+            {"1": "MIC_WS", "2": "GND", "3": "GND", "4": "MIC_SCK", "5": "+3V3", "6": "MIC_SD"},
+            (149.6, 109.0, 0)),    # в самом углу: левее идёт +5V к ряду GPIO
+    "C11": ("Device:C", "100nF", C0603, {"1": "+3V3", "2": "GND"}, (149.6, 112.4, 0)),
 }
 
 b = Builder(layers=2)
@@ -188,7 +201,8 @@ for p in d.parts:
 # ESP32: проверка, что номера выводов модуля - те GPIO, что задуманы
 _sym = {p.number: p.name for p in kigen.get_symbol("RF_Module:ESP32-S3-WROOM-1").pins}
 for _pn, _want in (("21", "IO13"), ("20", "IO12"), ("23", "IO21"), ("25", "IO48"), ("27", "IO0"),
-                   ("13", "USB_D-"), ("14", "USB_D+"), ("39", "IO1"), ("28", "IO35"), ("35", "IO42")):
+                   ("13", "USB_D-"), ("14", "USB_D+"), ("39", "IO1"), ("28", "IO35"), ("35", "IO42"),
+                   ("24", "IO47"), ("22", "IO14"), ("19", "IO11")):
     assert _sym[_pn] == _want or _want in _sym[_pn], (_pn, _sym[_pn], _want)
 
 # ================================================================= разводка вручную
@@ -281,6 +295,12 @@ for _r, _dx, _dy in (("C13", 0.0, 1.45), ("C14", 0.0, 1.45)):
 g = P("U3", "4")
 T("GND", [g, (g[0] - 0.75, g[1] - 0.95)], WP)
 V("GND", g[0] - 0.75, g[1] - 0.95)
+# земля микрофона: пад 3 у звукового отверстия маленький (0.3 мм), заливка подходит к
+# нему с одной стороны - своя дорожка на via ниже корпуса
+g = P("MK1", "3")
+T("GND", [g, (g[0], g[1] + 1.5)], W)
+V("GND", g[0], g[1] + 1.5)
+T("GND", [(g[0], g[1] + 1.5), pad_of("C11", "GND")], W)
 # подтяжки CC у USB-C - тоже через via
 for _r, _dx in (("R9", -1.3), ("R10", 1.3)):
     g = pad_of(_r, "GND")
@@ -353,7 +373,24 @@ for _r, (_lid, _val, _fpid, _n, _xy) in PARTS.items():
         continue
     _byval.setdefault(_val, []).append(_r)
 _key = lambda r: (re.match(r"[A-Z]+", r).group(0), int(re.search(r"\d+", r).group(0)))
-LEGEND = ["%s: %s" % (",".join(sorted(rs, key=_key)), v)
+
+
+def _ranges(rs):
+    """C1,C2,C3,C7 -> C1-C3,C7: подряд идущие номера одной буквы - диапазоном."""
+    rs = sorted(rs, key=_key)
+    out, i = [], 0
+    while i < len(rs):
+        j = i
+        while j + 1 < len(rs) and _key(rs[j + 1])[0] == _key(rs[i])[0]                 and _key(rs[j + 1])[1] == _key(rs[j])[1] + 1:
+            j += 1
+        out.append(rs[i] if j - i < 2 else "%s-%s" % (rs[i], rs[j]))
+        if j - i == 1:
+            out.append(rs[j])
+        i = j + 1
+    return ",".join(out)
+
+
+LEGEND = ["%s: %s" % (_ranges(rs), v)
           for v, rs in sorted(_byval.items(), key=lambda kv: _key(sorted(kv[1], key=_key)[0]))]
 
 
@@ -402,19 +439,21 @@ def stack(lines, anchor):
 
 # Обратная сторона: бренд, шунт, памятка и легенда номиналов - столбцами, место ищется
 # по свободной от падов и отверстий площади.
-LSZ, LTH = 1.0, 0.18
+LSZ, LTH = 0.9, 0.17
 stack([("ASTechLab", 2.0, 0.5), ("DRAIN WATCHER v3", 1.5, 0.375)], (113.0, 118.0))
 stack([("4 terminal shunt", 1.0, 0.25), ("2.5 mOhm 30A 75mV", 1.0, 0.25),
        ("BAT+ via 1A fuse", 1.0, 0.25), ("Never crank through shunt!", 1.0, 0.25)], (113.0, 127.0))
 _legend = sorted(LEGEND, key=lambda l: (not l.startswith("U"), _key(l.split(":")[0].split(",")[0])))
 # первый столбец - высокий, по центру платы; остаток - двумя короткими блоками в нижней
 # полосе (на обороте под кнопками и под преобразователем свободно)
-_n1 = 10
+_n1 = 11
 _rest = _legend[_n1:]
-_n2 = (len(_rest) + 1) // 2
+# остаток - короткими блоками по 3 строки в нижней полосе оборота (8 мм по высоте):
+# под преобразователем двумя столбцами и под кнопками
 stack([(l, LSZ, LTH) for l in _legend[:_n1]], (132.0, 122.0))
-stack([(l, LSZ, LTH) for l in _rest[:_n2]], (143.0, 139.0))
-stack([(l, LSZ, LTH) for l in _rest[_n2:]], (112.0, 140.5))
+_anch = [(146.0, 139.5), (136.0, 139.5), (112.0, 140.5), (120.0, 140.5)]
+for _i in range(0, len(_rest), 3):
+    stack([(l, LSZ, LTH) for l in _rest[_i:_i + 3]], _anch[_i // 3])
 print("легенда номиналов: %d строк" % len(LEGEND))
 
 
@@ -503,6 +542,11 @@ def place_ref(fp):
 for _fp in sorted(b.b.GetFootprints(), key=lambda f: f.GetReference()):
     place_ref(_fp)
 
+# пад 3 микрофона - только своей дорожкой на via: заливка к нему у отверстия подходит
+# одной перемычкой, и DRC считает такое тепловое соединение неполным
+for _p in b.fps["MK1"].Pads():
+    if _p.GetNumber() == "3" and _p.GetSize().x < mm(0.4):
+        b.pad_zone_connection(_p, pcbnew.ZONE_CONNECTION_NONE)
 # земляные пады USB-C - сплошным соединением
 for _p in b.fps["J1"].Pads():
     if _p.GetNetname() == "GND":
