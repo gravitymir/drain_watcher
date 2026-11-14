@@ -39,6 +39,7 @@ LCSC = {
     ("1uF", "C_0603_1608Metric"): "C15849",      # Samsung CL10A105KB8NNNC, 50 В
     ("10uF", "C_0805_2012Metric"): "C15850",     # Samsung CL21A106KAYNNNE, 25 В
     ("10k", "R_0603_1608Metric"): "C25804",      # Uniroyal 0603WAF1002T5E, 1%
+    ("100k", "R_0603_1608Metric"): "C25803",     # Uniroyal 0603WAF1003T5E, 1%
     ("4.7k", "R_0603_1608Metric"): "C23162",     # Uniroyal 0603WAF4701T5E, 1%
     ("1k", "R_0603_1608Metric"): "C21190",       # Uniroyal 0603WAF1001T5E, 1%
     ("5.1k", "R_0603_1608Metric"): "C23186",     # Uniroyal 0603WAF5101T5E, 1%

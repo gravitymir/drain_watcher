@@ -4,4 +4,4 @@
 # здесь достаточно - соединение идёт ещё и дорожкой.
 (rule "one_spoke_small_gnd_pads"
 	(condition "A.Type == 'Pad' && A.NetName == 'GND'")
-	(constraint min_resolved_spokes (min 1)))
+	(constraint min_resolved_spokes 1))

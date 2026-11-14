@@ -346,11 +346,12 @@ def route_once(reroute):
     if not pcbnew.ImportSpecctraSES(b, SES):
         raise SystemExit("ImportSpecctraSES: ошибка")
     # Freerouting сужает дорожку у узких падов (0.75 ширины класса, у USB-C это 0.11 мм),
-    # отключить это из командной строки не выходит. Сужения - обратно до нормы 0.15 мм;
-    # если от этого где-то не хватит зазора, DRC забракует попытку, и будет следующая.
+    # отключить это из командной строки не выходит. Сужения - до 0.13 мм: это в нормах
+    # JLCPCB для двухслойки (от 0.127), а зазор до соседних падов разъёма ещё остаётся
+    # (при 0.15 его не хватало на сотую). Если всё же не хватит, DRC забракует попытку.
     for t in b.GetTracks():
-        if t.GetClass() == "PCB_TRACK" and not t.IsLocked() and t.GetWidth() < mm(0.15):
-            t.SetWidth(mm(0.15))
+        if t.GetClass() == "PCB_TRACK" and not t.IsLocked() and t.GetWidth() < mm(0.13):
+            t.SetWidth(mm(0.13))
     pcbnew.SaveBoard(PCB, b)
     stage("cleanup")
 

@@ -6,10 +6,10 @@
 	(descr "TDK InvenSense MEMS I2S Microphone: https://invensense.tdk.com/products/ics-43434/")
 	(tags "microphone MEMS I2S ICS-43434 TDK InvenSense")
 	(property "Reference" "REF**"
-		(at 0 -2.945 0)
+		(at 7.053 -0.86 0)
 		(unlocked yes)
 		(layer "F.SilkS")
-		(uuid "223dc3ef-208d-45ab-9d18-d96f7b5c8e0c")
+		(uuid "9dbad58d-9ef2-4ebe-b909-0db8bedf2bb5")
 		(effects
 			(font
 				(size 0.8 0.8)
@@ -22,7 +22,7 @@
 		(unlocked yes)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "7c04a31a-1f44-421a-ac0e-b139e7ed8860")
+		(uuid "cc13a944-449b-4123-bdca-d6172c86078c")
 		(effects
 			(font
 				(size 1 1)
@@ -35,7 +35,7 @@
 		(unlocked yes)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "555b5d35-a921-4d8e-86b4-66ee818a4d1c")
+		(uuid "eeae5f4d-d1d5-45fb-8bbc-95bff33aa5ba")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -48,7 +48,7 @@
 		(unlocked yes)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "f6a41f5a-cb7a-48d5-a4ce-b8449d61ba1c")
+		(uuid "0a5e3fd4-bf5d-4d49-986c-6556a45b22b9")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -66,7 +66,7 @@
 			(type default)
 		)
 		(layer "F.SilkS")
-		(uuid "dde22ba2-3322-40c8-87fc-477b337328e3")
+		(uuid "66c8185e-df3e-454b-be55-d9ea09cd8629")
 	)
 	(fp_line
 		(start -1.125 -1.85)
@@ -76,7 +76,7 @@
 			(type default)
 		)
 		(layer "F.SilkS")
-		(uuid "067ae80d-be6b-4e07-86e9-790e442f9d0e")
+		(uuid "96c4643d-e545-4fdb-9a0d-ce217488745c")
 	)
 	(fp_line
 		(start 1.425 -1.85)
@@ -86,7 +86,7 @@
 			(type default)
 		)
 		(layer "F.SilkS")
-		(uuid "9d61fd00-bf27-46f8-8b25-580aec2a9b17")
+		(uuid "1b5cfa28-a698-47ef-acb4-fb36a128873d")
 	)
 	(fp_line
 		(start 1.425 1.85)
@@ -96,7 +96,7 @@
 			(type default)
 		)
 		(layer "F.SilkS")
-		(uuid "faf83888-e8fe-4a1d-9ef6-64ced799ef26")
+		(uuid "cefe2ddc-6bdd-47c9-bf30-50de435b4744")
 	)
 	(fp_poly
 		(pts
@@ -108,7 +108,7 @@
 		)
 		(fill yes)
 		(layer "F.SilkS")
-		(uuid "c333ab7d-b554-48ae-b62c-adb20c2c5dfd")
+		(uuid "f4af7dbb-c1dd-4ff7-91f5-cbf9e9729507")
 	)
 	(fp_rect
 		(start -1.15 -1.575)
@@ -119,7 +119,7 @@
 		)
 		(fill yes)
 		(layer "F.Paste")
-		(uuid "d27cd285-fda7-4e6b-817c-48d936f1ff36")
+		(uuid "94cb4690-3b37-4efd-881a-7c5593917a12")
 	)
 	(fp_rect
 		(start -0.65 -0.753)
@@ -130,7 +130,7 @@
 		)
 		(fill yes)
 		(layer "F.Paste")
-		(uuid "841003a4-ac0b-4b1d-9990-08a8901c0831")
+		(uuid "a850e43a-5277-4d05-837c-23ba14564564")
 	)
 	(fp_rect
 		(start -0.25 -1.575)
@@ -141,7 +141,7 @@
 		)
 		(fill yes)
 		(layer "F.Paste")
-		(uuid "e3cddc3a-9a94-4abf-87e6-035ff33ccfd2")
+		(uuid "7e1d26c4-5e6f-4e61-b750-a73a2401d7c8")
 	)
 	(fp_rect
 		(start 0.65 -0.753)
@@ -152,7 +152,7 @@
 		)
 		(fill yes)
 		(layer "F.Paste")
-		(uuid "22471592-2687-4438-8c34-58fe780f141c")
+		(uuid "f55c8d5a-949b-4da7-9490-ffaf0657ef01")
 	)
 	(fp_rect
 		(start 1.15 -1.575)
@@ -163,7 +163,7 @@
 		)
 		(fill yes)
 		(layer "F.Paste")
-		(uuid "8550525f-c327-457b-a2cf-bfbd029dc54a")
+		(uuid "f5c25af9-675b-4e25-b1bf-4e2ae85295d5")
 	)
 	(fp_poly
 		(pts
@@ -178,7 +178,7 @@
 		)
 		(fill yes)
 		(layer "F.Paste")
-		(uuid "18933234-f11a-44df-b631-8384359f2e56")
+		(uuid "3d5b8edc-6ca5-423f-8b5c-4cfa63ccb03a")
 	)
 	(fp_poly
 		(pts
@@ -192,7 +192,7 @@
 		)
 		(fill yes)
 		(layer "F.Paste")
-		(uuid "add92c54-04fa-4c70-9bfc-2948d2c5566f")
+		(uuid "a77c5ead-637a-4496-bd3b-3f4625741b3a")
 	)
 	(fp_poly
 		(pts
@@ -206,7 +206,7 @@
 		)
 		(fill yes)
 		(layer "F.Paste")
-		(uuid "c606541e-4c47-4fb4-bd91-ae040bf9c769")
+		(uuid "210c50d0-aa62-4d58-93f4-35b690301508")
 	)
 	(fp_poly
 		(pts
@@ -220,7 +220,7 @@
 		)
 		(fill yes)
 		(layer "F.Paste")
-		(uuid "62cf7c48-6a5b-40c9-ac2d-02d7fa626340")
+		(uuid "aa690588-524d-4d97-a358-2bba4ad7e2fa")
 	)
 	(fp_rect
 		(start -1.58 -2)
@@ -231,7 +231,7 @@
 		)
 		(fill no)
 		(layer "F.CrtYd")
-		(uuid "69cad27e-61f2-4219-8e31-28345bd12998")
+		(uuid "30252124-b375-47e3-a2f7-88f4eb4aab19")
 	)
 	(fp_line
 		(start -1.325 -1.25)
@@ -241,7 +241,7 @@
 			(type solid)
 		)
 		(layer "F.Fab")
-		(uuid "299affd7-787e-4077-af40-1611c9b0fbf0")
+		(uuid "2997408f-9bf8-4e69-95c0-1ce00414d233")
 	)
 	(fp_line
 		(start -1.325 1.75)
@@ -251,7 +251,7 @@
 			(type solid)
 		)
 		(layer "F.Fab")
-		(uuid "4748fd02-2a5c-48b0-af33-92d8e8907828")
+		(uuid "1e1210ab-3ec5-40a5-af81-1472dbee5f49")
 	)
 	(fp_line
 		(start -0.825 -1.75)
@@ -261,7 +261,7 @@
 			(type solid)
 		)
 		(layer "F.Fab")
-		(uuid "af707ff9-5843-491d-85bf-85c8c67a9987")
+		(uuid "c12df706-ae26-491c-b539-febf49518f9f")
 	)
 	(fp_line
 		(start 1.325 -1.75)
@@ -271,7 +271,7 @@
 			(type solid)
 		)
 		(layer "F.Fab")
-		(uuid "73d94d6f-175c-456a-a543-7bc7635c46c3")
+		(uuid "c29138bb-165c-41e6-b418-7a1b6d66e79b")
 	)
 	(fp_line
 		(start 1.325 1.75)
@@ -281,13 +281,13 @@
 			(type solid)
 		)
 		(layer "F.Fab")
-		(uuid "a21e98d4-7450-40cb-a087-24d2028d255d")
+		(uuid "8cc3cf88-0a19-4b6e-80c4-1bcf8c1ad2a6")
 	)
 	(fp_text user "${REFERENCE}"
 		(at 0 0.01 90)
 		(unlocked yes)
 		(layer "F.Fab")
-		(uuid "c9b73d47-a632-4ebd-901d-49fef63dcff5")
+		(uuid "21d27129-2a72-46d0-a462-35772e19100e")
 		(effects
 			(font
 				(size 0.8 0.8)
@@ -300,19 +300,19 @@
 		(size 0.5 0.5)
 		(drill 0.5)
 		(layers "*.Mask")
-		(uuid "ee062ae6-439d-4f30-859f-683d74017189")
+		(uuid "bd0e1fe8-c7ec-4929-81d5-a54eff9185a1")
 	)
 	(pad "1" smd rect
 		(at -0.9 -1.364)
 		(size 0.6 0.522)
 		(layers "F.Cu" "F.Mask")
-		(uuid "22bb69bf-0720-4c56-8744-6240986f66d9")
+		(uuid "b4c03f1c-c931-4bb9-808a-9c120f043d31")
 	)
 	(pad "2" smd rect
 		(at -0.9 -0.542)
 		(size 0.6 0.522)
 		(layers "F.Cu" "F.Mask")
-		(uuid "d32a8553-0c46-4ba1-b77c-d31d5dc01abf")
+		(uuid "aa49ab86-d6e8-4f1a-abcc-bbcc46d03255")
 	)
 	(pad "3" smd custom
 		(at 0.6625 0.71 90)
@@ -331,25 +331,25 @@
 				(fill no)
 			)
 		)
-		(uuid "3f1431e9-d29f-452c-a717-3a5cb0efab5f")
+		(uuid "3c55e623-e695-4e00-92cc-3b7ee532da0c")
 	)
 	(pad "4" smd rect
 		(at 0.9 -0.542)
 		(size 0.6 0.522)
 		(layers "F.Cu" "F.Mask")
-		(uuid "55bde45e-057b-49a3-be8d-dd2902a4212b")
+		(uuid "836655e2-4017-4c4c-a35e-03dfdbaa7399")
 	)
 	(pad "5" smd rect
 		(at 0.9 -1.364)
 		(size 0.6 0.522)
 		(layers "F.Cu" "F.Mask")
-		(uuid "ce7597da-7293-442b-a9c6-7115e292c8c6")
+		(uuid "37f6a514-03bb-4717-a972-6073eec3f900")
 	)
 	(pad "6" smd rect
 		(at 0 -1.364)
 		(size 0.6 0.522)
 		(layers "F.Cu" "F.Mask")
-		(uuid "62b0adbd-d827-4a15-bb4e-188b1c0d8a0a")
+		(uuid "20e8c530-9e99-47a6-aaa7-808ec6edcaa1")
 	)
 	(embedded_fonts no)
 	(model "${KICAD10_3DMODEL_DIR}/Sensor_Audio.3dshapes/InvenSense_ICS-43434-6_3.5x2.65mm.step"
