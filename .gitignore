@@ -32,3 +32,6 @@ fp-info-cache
 hardware/drc.rpt
 hardware/erc.rpt
 __pycache__/
+hardware/*.dsn
+hardware/*.freerouting.log
+hardware/*.pre_route.kicad_pcb

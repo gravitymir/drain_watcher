@@ -44,21 +44,26 @@ LCSC = {
     ("5.1k", "R_0603_1608Metric"): "C23186",     # Uniroyal 0603WAF5101T5E, 1%
     ("10R", "R_0603_1608Metric"): "C22859",      # Uniroyal 0603WAF100JT5E
     ("10k", "R_1206_3216Metric"): "C17902",      # Uniroyal 1206W4F1002T5E, 200 В
-    ("LED", "LED_0805_2012Metric"): "C84256",    # NationStar FC-2012HRK-620D, красный
+    ("22uF", "C_0805_2012Metric"): "C45783",     # Samsung CL21A226MAQNNNE, 25 В
 }
 ALT = {
-    "AP2112K-3.3": "аналог по выводам ME6211C33M5G-N (C82942), SOT-23-5, 1 VIN / 2 GND / 3 EN / 5 VOUT",
-    "ESP32-S3-WROOM-1-N16R8": "подойдёт любой ESP32-S3-WROOM-1 (N8, N8R2, N16R2) - выводы те же",
+    "ESP32-S3-WROOM-1-N8R2": "подойдёт ESP32-S3-WROOM-1-N8 (C2913198); N16R8 - нет: восьмибитная PSRAM занимает IO35-IO37",
+    "B5819W": "любой Шоттки 40 В 1 А в SOD-123 (SS14 в SMA не встанет)",
 }
 LCSC_ANY = {
-    "ESP32-S3-WROOM-1-N16R8": "C2913202",
+    "ESP32-S3-WROOM-1-N8R2": "C2913204",
     "INA228AIDGSR": "C2887910",
-    "AP2112K-3.3": "C51118",
+    "AP63205WU-7": "C2071056",
+    "TLV75733PDBVR": "C485517",
+    "WS2812B-2020": "C965555",
+    "B5819W": "C8598",
+    "4.7uH": "C57269",      # Sunlord SWPA4030S4R7MT
     "USB-C": "C165948",
     "SMF24CA": "C3035829",  # PAKER, двунаправленный, SOD-123FL
     "SMF24A": "C3035828",   # PAKER, однонаправленный, SOD-123FL
-    # XKB TS-1187A-B-A-B: корпус 5.1x5.1, посадка как у ALPS SKQG
+    # XKB TS-1187A-B-A-B: корпус 5.1x5.1
     "BOOT": "C318884",
+    "RESET": "C318884",
 }
 with open(os.path.join(out, "BOM.csv"), "w", newline="") as f:
     w = csv.writer(f)

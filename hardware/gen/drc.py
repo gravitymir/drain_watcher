@@ -51,6 +51,36 @@ def collect(b):
             i.a = i.bb = (tomm(p.x), tomm(p.y))
             i.hw = tomm(t.GetWidth()) / 2
             i.lbl = "via"
+        elif t.GetClass() == "PCB_ARC":
+            # дуга - ломаной из коротких хорд: хорда целиком срезала бы изгиб
+            s, m, e = t.GetStart(), t.GetMid(), t.GetEnd()
+            pts = [(tomm(v.x), tomm(v.y)) for v in (s, m, e)]
+            ax, ay = pts[0]
+            mx, my = pts[1]
+            ex, ey = pts[2]
+            d = 2 * (ax * (my - ey) + mx * (ey - ay) + ex * (ay - my))
+            if abs(d) < 1e-9:
+                poly = [pts[0], pts[2]]
+            else:
+                ux = ((ax * ax + ay * ay) * (my - ey) + (mx * mx + my * my) * (ey - ay) + (ex * ex + ey * ey) * (ay - my)) / d
+                uy = ((ax * ax + ay * ay) * (ex - mx) + (mx * mx + my * my) * (ax - ex) + (ex * ex + ey * ey) * (mx - ax)) / d
+                rr = math.hypot(ax - ux, ay - uy)
+                a0, am, a1 = (math.atan2(p_[1] - uy, p_[0] - ux) for p_ in pts)
+                sweep = (a1 - a0) % (2 * math.pi)
+                if (am - a0) % (2 * math.pi) > sweep:      # дуга идёт в другую сторону
+                    sweep -= 2 * math.pi
+                n = 8
+                poly = [(ux + rr * math.cos(a0 + sweep * k / n), uy + rr * math.sin(a0 + sweep * k / n))
+                        for k in range(n + 1)]
+            for p0, p1 in zip(poly, poly[1:]):
+                j = It()
+                j.nc, j.nm, j.owner = i.nc, i.nm, None
+                j.kind, j.lay = "trk", frozenset([t.GetLayer()])
+                j.a, j.bb = p0, p1
+                j.hw = tomm(t.GetWidth()) / 2
+                j.lbl = "arc"
+                out.append(j)
+            continue
         else:
             s, e = t.GetStart(), t.GetEnd()
             i.kind, i.lay = "trk", frozenset([t.GetLayer()])

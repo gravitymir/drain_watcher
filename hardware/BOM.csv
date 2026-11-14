@@ -1,9 +1,21 @@
 Comment,Designator,Footprint,LCSC Part #,Qty,Note
-100nF,"C1,C2,C3",drain_watcher:C_0603_1608Metric,C14663,3,проверить наличие на складе
-SMF24A,D2,drain_watcher:D_SOD-123F,C3035828,1,проверить наличие на складе
+100nF,"C1,C12,C2,C3,C7,C9",drain_watcher:C_0603_1608Metric,C14663,6,проверить наличие на складе
+1uF,C8,drain_watcher:C_0603_1608Metric,C15849,1,проверить наличие на складе
+10uF,"C10,C15,C16",drain_watcher:C_0805_2012Metric,C15850,3,проверить наличие на складе
+22uF,"C13,C14",drain_watcher:C_0805_2012Metric,C45783,2,проверить наличие на складе
+B5819W,"D4,D6,D7",drain_watcher:D_SOD-123,C8598,3,проверить наличие на складе; любой Шоттки 40 В 1 А в SOD-123 (SS14 в SMA не встанет)
+SMF24A,"D2,D5",drain_watcher:D_SOD-123F,C3035828,2,проверить наличие на складе
 SMF24CA,D1,drain_watcher:D_SOD-123F,C3035829,1,проверить наличие на складе
+ESP32-S3-WROOM-1-N8R2,U1,drain_watcher:ESP32-S3-WROOM-1,C2913204,1,проверить наличие на складе; подойдёт ESP32-S3-WROOM-1-N8 (C2913198); N16R8 - нет: восьмибитная PSRAM занимает IO35-IO37
+WS2812B-2020,D3,drain_watcher:LED_WS2812B-2020_PLCC4_2.0x2.0mm,C965555,1,проверить наличие на складе
+4.7uH,L1,drain_watcher:L_Sunlord_SWPA4030S,C57269,1,проверить наличие на складе
 INA228AIDGSR,U2,drain_watcher:MSOP-10_3x3mm_P0.5mm,C2887910,1,проверить наличие на складе
 10R,"R1,R2",drain_watcher:R_0603_1608Metric,C22859,2,проверить наличие на складе
 4.7k,"R4,R5",drain_watcher:R_0603_1608Metric,C23162,2,проверить наличие на складе
-10k,R6,drain_watcher:R_0603_1608Metric,C25804,1,проверить наличие на складе
+5.1k,"R10,R9",drain_watcher:R_0603_1608Metric,C23186,2,проверить наличие на складе
+10k,R7,drain_watcher:R_0603_1608Metric,C25804,1,проверить наличие на складе
 10k,R3,drain_watcher:R_1206_3216Metric,C17902,1,проверить наличие на складе
+TLV75733PDBVR,U4,drain_watcher:SOT-23-5,C485517,1,проверить наличие на складе
+BOOT/RESET,"SW1,SW2",drain_watcher:SW_Push_1P1T_XKB_TS-1187A,C318884,2,проверить наличие на складе
+AP63205WU-7,U3,drain_watcher:TSOT-23-6,C2071056,1,проверить наличие на складе
+USB-C,J1,drain_watcher:USB_C_Receptacle_HRO_TYPE-C-31-M-12,C165948,1,проверить наличие на складе
