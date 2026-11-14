@@ -35,12 +35,15 @@ MX, MY = 112.75, 122.0
 # Узел измерения - тот же, что на модуле INA228 (расставлен вручную в KiCad).
 TX, TY = 149.8, 117.6                       # отверстия под провода, шаг 4.6 мм
 UX, UY = 135.4, 122.0                       # INA228
-# Ряд отверстий GPIO над модулем, шаг 2.54: вывод 1 - сразу правее запретной зоны антенны.
+# Ряд отверстий над модулем: четыре отдельные группы (UART0, UART1, I2C, GPIO), внутри
+# группы шаг 2.54, между группами - 3.175 (пропуск виден, под каждую группу - свой
+# разъём). Первый вывод - сразу правее запретной зоны антенны, последний - у правого края.
 GX, GY = 108.0, 106.6
+GGAP = 3.175
 JX, JY = 128.4, 141.6                       # USB-C, торцом к нижнему краю
 
 X0, X1 = 100.0, 152.0
-Y0, Y1 = 104.6, 145.8
+Y0, Y1 = 103.3, 145.8                       # сверху - полоса под названия групп
 BW, BH = X1 - X0, Y1 - Y0
 
 # ------------------------------------------------------------------ детали
@@ -51,11 +54,25 @@ SOD123 = ("Diode_SMD", "D_SOD-123")
 SOD123F = ("Diode_SMD", "D_SOD-123F")
 BTN = ("Button_Switch_SMD", "SW_Push_1P1T_XKB_TS-1187A")
 
-# Ряд GPIO: слева направо в том же порядке, что выводы верхнего ряда модуля (39 ... 28),
-# справа - питание. Номер вывода модуля -> имя цепи.
-HDR = [("39", "IO1"), ("38", "IO2"), ("37", "TXD0"), ("36", "RXD0"), ("35", "IO42"),
-       ("34", "IO41"), ("33", "IO40"), ("32", "IO39"), ("31", "IO38"), ("30", "IO37"),
-       ("29", "IO36"), ("28", "IO35"), (None, "GND"), (None, "+3V3"), (None, "+5V")]
+# Группы ряда: (разъём, название, [(вывод модуля или None, цепь, подпись), ...]).
+# Датчики на UART/I2C - с питанием в той же четвёрке, как у типовых модулей. Выводы
+# модуля - из верхнего ряда, слева направо в том же порядке, что и группы.
+# UART1 и I2C - через матрицу GPIO ESP32-S3: в прошивке назначаются на эти выводы.
+GROUPS = [
+    ("J3", "UART0", [(None, "GND", "GND"), (None, "+3V3", "3V3"),
+                     ("37", "TXD0", "TX"), ("36", "RXD0", "RX")]),           # штатный UART0
+    ("J4", "UART1", [(None, "GND", "GND"), (None, "+3V3", "3V3"),
+                     ("35", "U1_TX", "TX"), ("34", "U1_RX", "RX")]),         # IO42, IO41
+    ("J5", "I2C", [(None, "GND", "GND"), (None, "+3V3", "3V3"),
+                   ("33", "I2C1_SCL", "SCL"), ("32", "I2C1_SDA", "SDA")]),   # IO40, IO39
+    ("J6", "GPIO", [("31", "IO38", "IO38"), ("30", "IO37", "IO37"), ("29", "IO36", "IO36"),
+                    ("28", "IO35", "IO35"), (None, "+5V", "5V")]),
+]
+HDR = [(pn, n) for _, _, pins in GROUPS for pn, n, _ in pins]
+_gx, GPOS = GX, {}
+for _ref, _, _pins in GROUPS:
+    GPOS[_ref] = _gx
+    _gx += 2.54 * (len(_pins) - 1) + GGAP
 
 ESP_NETS = {"1": "GND", "40": "GND", "41": "GND", "2": "+3V3", "3": "EN",
             "13": "USB_DM", "14": "USB_DP",
@@ -89,8 +106,7 @@ PARTS = {
             "A4": "VBUS", "A9": "VBUS", "B4": "VBUS", "B9": "VBUS",
             "A5": "CC1", "B5": "CC2", "A6": "USB_DP", "B6": "USB_DP",
             "A7": "USB_DM", "B7": "USB_DM", "SH": "GND"}, (JX, JY, 0)),
-    "J3": ("Connector_Generic:Conn_01x15", "GPIO", ("Connector_PinHeader_2.54mm", "PinHeader_1x15_P2.54mm_Vertical"),
-           {str(i + 1): n for i, (_, n) in enumerate(HDR)}, (GX, GY, 90)),
+
     # --- вход измерения (как на модуле INA228)
     "D1": ("Device:D_TVS", "SMF24CA", SOD123F, {"1": "SNS_P", "2": "SNS_N"}, (145.57, 118.86, 270)),
     "R1": ("Device:R", "10R", R0603, {"1": "INP", "2": "SNS_P"}, (UX + 6.6, 118.4, 0)),
@@ -147,7 +163,14 @@ PARTS = {
     # SD (табл. 8 даташита): в паузах микрофон отпускает линию - 100k на землю, чтобы
     # она не висела в воздухе
     "R12": ("Device:R", "100k", R0603, {"1": "MIC_SD", "2": "GND"}, (134.4, 113.5, 90)),
+    # --- внешняя шина I2C (отдельно от INA228: у датчиков вроде Si7021 тот же адрес 0x40)
+    "R13": ("Device:R", "4.7k", R0603, {"1": "I2C1_SCL", "2": "+3V3"}, (143.6, 113.0, 90)),
+    "R14": ("Device:R", "4.7k", R0603, {"1": "I2C1_SDA", "2": "+3V3"}, (145.2, 113.0, 90)),
 }
+for _ref, _name, _pins in GROUPS:
+    PARTS[_ref] = ("Connector_Generic:Conn_01x%02d" % len(_pins), _name,
+                   ("Connector_PinHeader_2.54mm", "PinHeader_1x%02d_P2.54mm_Vertical" % len(_pins)),
+                   {str(i + 1): n for i, (_, n, _) in enumerate(_pins)}, (GPOS[_ref], GY, 90))
 
 b = Builder(layers=2)
 for ref, (lid, val, (fl, fn), nets, (x, y, r)) in PARTS.items():
@@ -155,7 +178,7 @@ for ref, (lid, val, (fl, fn), nets, (x, y, r)) in PARTS.items():
 
 # J2 и J3 - только отверстия: провода и гребёнку 2.54 мм впаивают по месту, а не на
 # заводе. 3D-модели нет, в BOM и в файл установки (CPL) они не попадают.
-NOPART = ("J2", "J3")
+NOPART = ("J2",) + tuple(g[0] for g in GROUPS)
 for _r in NOPART:
     _f = b.fps[_r]
     _f.Models().clear()
@@ -175,7 +198,7 @@ for _p in b.fps["U2"].Pads():
 # -------------------------------------------------------------------- схема
 d = kigen.Design(NAME, "drain_watcher v3 - ESP32-S3 + INA228, %.0fx%.0f mm, 2 layers" % (BW, BH), paper="A3")
 d.prepare()
-SCHAT = {"U1": (80, 110), "U2": (230, 80), "J1": (80, 230), "J2": (330, 80), "J3": (30, 70),
+SCHAT = {"U1": (80, 110), "U2": (230, 80), "J1": (80, 230), "J2": (330, 80), "J3": (30, 40), "J4": (30, 80), "J5": (30, 120), "J6": (30, 160),
          "U3": (230, 200), "U4": (330, 200)}
 small = [r for r in PARTS if r not in SCHAT]
 for ref, (lid, val, (fl, fn), nets, _) in PARTS.items():
@@ -305,7 +328,14 @@ V("GND", g[0] - 0.75, g[1] - 0.95)
 g = P("MK1", "3")
 T("GND", [g, (g[0], g[1] + 1.5)], W)
 V("GND", g[0], g[1] + 1.5)
-T("GND", [(g[0], g[1] + 1.5), pad_of("C11", "GND")], W)
+# земля C11 - своим via прямо под ним: справа от микрофона остаётся проход вниз для SCK
+g = pad_of("C11", "GND")
+T("GND", [g, (g[0], g[1] + 1.3)], W)
+V("GND", g[0], g[1] + 1.3)
+# R12 (подтяжка SD) зажат между микрофоном и подписями ряда - земля своим via сверху
+g = pad_of("R12", "GND")
+T("GND", [g, (g[0], g[1] - 1.25)], W)
+V("GND", g[0], g[1] - 1.25)
 # подтяжки CC у USB-C - тоже через via
 for _r, _dx in (("R9", -1.3), ("R10", 1.3)):
     g = pad_of(_r, "GND")
@@ -315,6 +345,14 @@ c10g, d5g = pad_of("C10", "GND"), pad_of("D5", "GND")
 XG5 = 148.9
 T("GND", [c10g, (XG5, c10g[1]), (XG5, d5g[1]), d5g], WP)
 V("GND", XG5, c10g[1])
+
+# GND групп ряда - общей шиной по нижнему слою вдоль верхнего края (над отверстиями):
+# иначе роутер ведёт там сигналы и отрезает земляные выводы групп от общей заливки
+YGB = GY - 2.2
+_gnds = [P(r, str(i + 1)) for r, _, pins in GROUPS for i, (_, n, _) in enumerate(pins) if n == "GND"]
+for _g in _gnds:
+    B("GND", [_g, (_g[0], YGB)], WP)
+B("GND", [(_gnds[0][0], YGB), (_gnds[-1][0], YGB)], WP)
 
 # Всё, что разведено здесь, роутеру трогать нельзя
 for _t in b.b.GetTracks():
@@ -327,6 +365,34 @@ for _ly in (FCU, BCU):
     b.zone("GND", _ly, X0 + BW / 2, Y0 + BH / 2, BW - 0.6, BH - 0.6).SetIslandRemovalMode(
         pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
 
+
+def keepout(x0, y0, x1, y1, layers, vias=True, tracks=False):
+    """Запретная зона (rule area) - её видит и DRC, и Freerouting (через DSN)."""
+    z = pcbnew.ZONE(b.b)
+    z.SetIsRuleArea(True)
+    ls = pcbnew.LSET()
+    for ly in layers:
+        ls.AddLayer(ly)
+    z.SetLayerSet(ls)
+    z.SetDoNotAllowVias(vias)
+    z.SetDoNotAllowTracks(tracks)
+    z.SetDoNotAllowZoneFills(False)
+    z.SetDoNotAllowPads(False)
+    z.SetDoNotAllowFootprints(False)
+    o = z.Outline()
+    o.NewOutline()
+    for px, py in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
+        o.Append(mm(px), mm(py))
+    b.b.Add(z)
+
+
+# Под микрофоном: без via на обоих слоях (рядом звуковое отверстие и пады) и без дорожек
+# снизу - с той стороны в отверстие заходит звук.
+_mk = b.fps["MK1"].GetPosition()
+_mx, _my = tomm(_mk.x), tomm(_mk.y)
+keepout(_mx - 1.45, _my - 1.85, _mx + 1.45, _my + 1.75, (FCU, BCU))
+keepout(_mx - 1.45, _my - 1.85, _mx + 1.45, _my + 1.75, (BCU,), vias=False, tracks=True)
+
 SZ, TH = 0.8, 0.15
 BS = pcbnew.B_SilkS
 # Подписи проводов - повёрнуты на 90, между диодами и отверстиями, с обеих сторон.
@@ -336,16 +402,31 @@ for i, lbl in enumerate(("SNS+", "SNS-", "GND", "BAT+")):
     dx, dy = (-2.28, -0.44) if lbl == "BAT+" else (-2.1, 0.0)
     b.text(lbl, x + dx, y + dy, size=SZ, thick=TH, rot=90)
     b.text(lbl, x + dx, y + dy, layer=BS, size=0.9, thick=0.18, rot=90, mirror=True)
-# Подписи ряда GPIO - под отверстиями, вертикально (на шаг 2.54 горизонтально не
-# влезают), с обеих сторон: сверху - поверх дорожек веером, это допустимо.
-for i, (_, n) in enumerate(HDR):
-    x, y = P("J3", str(i + 1))
-    lbl = {"TXD0": "TX", "RXD0": "RX", "+3V3": "3V3", "+5V": "5V"}.get(n, n)
+# Подписи выводов - под отверстиями, вертикально (на шаг 2.54 горизонтально не
+# влезают); название группы - над ней, у верхнего края; между группами - черта.
+# Всё с обеих сторон: сверху подписи ложатся поверх дорожек веером, это допустимо.
+_hdrsilk = []
+for _ref, _name, _pins in GROUPS:
+    for i, (_, n, lbl) in enumerate(_pins):
+        x, y = P(_ref, str(i + 1))
+        for _ly, _mr in ((pcbnew.F_SilkS, False), (BS, True)):
+            _t = b.text(lbl, x, y, layer=_ly, size=0.8, thick=0.15, rot=90, mirror=_mr)
+            _top = tomm(_t.GetBoundingBox().GetTop())      # верх надписи - сразу под отверстием
+            _t.SetPosition(pcbnew.VECTOR2I(mm(x), mm(y + (y - _top) + 1.15)))
+    _xm = GPOS[_ref] + 2.54 * (len(_pins) - 1) / 2
     for _ly, _mr in ((pcbnew.F_SilkS, False), (BS, True)):
-        _t = b.text(lbl, x, y, layer=_ly, size=0.8, thick=0.15, rot=90, mirror=_mr)
-        _top = tomm(_t.GetBoundingBox().GetTop())      # верх надписи - сразу под отверстием
-        _t.SetPosition(pcbnew.VECTOR2I(mm(x), mm(y + (y - _top) + 1.15)))
-_j3silk = [g for g in b.fps["J3"].GraphicalItems() if g.GetLayer() == pcbnew.F_SilkS]
+        b.text(_name, _xm, GY - 2.25, layer=_ly, size=0.8, thick=0.15, mirror=_mr)
+    _hdrsilk += [(_ref, g) for g in b.fps[_ref].GraphicalItems() if g.GetLayer() == pcbnew.F_SilkS]
+for _ref, _, _pins in GROUPS[:-1]:
+    _xs = GPOS[_ref] + 2.54 * (len(_pins) - 1) + GGAP / 2
+    for _ly in (pcbnew.F_SilkS, BS):
+        _ln = pcbnew.PCB_SHAPE(b.b)
+        _ln.SetShape(pcbnew.SHAPE_T_SEGMENT)
+        _ln.SetStart(pcbnew.VECTOR2I(mm(_xs), mm(GY - 2.6)))
+        _ln.SetEnd(pcbnew.VECTOR2I(mm(_xs), mm(GY + 1.0)))
+        _ln.SetWidth(mm(0.15))
+        _ln.SetLayer(_ly)
+        b.b.Add(_ln)
 for _ref, _lbl, _dx in (("SW2", "RST", 0.0), ("SW1", "BOOT", 0.0)):
     _q = b.fps[_ref].GetPosition()
     b.text(_lbl, tomm(_q.x) + _dx, tomm(_q.y) + 4.1, size=1.0, thick=0.2)
@@ -374,7 +455,7 @@ def _hit(a, c, m=0.15):
 # Легенда номиналов: детали с одинаковым номиналом - через запятую, затем номинал.
 _byval = {}
 for _r, (_lid, _val, _fpid, _n, _xy) in PARTS.items():
-    if _r.startswith("J"):                  # разъёмы подписаны у самих выводов
+    if _r.startswith("J") or _r.startswith("SW"):   # разъёмы и кнопки подписаны на месте
         continue
     _byval.setdefault(_val, []).append(_r)
 _key = lambda r: (re.match(r"[A-Z]+", r).group(0), int(re.search(r"\d+", r).group(0)))
@@ -456,7 +537,7 @@ _rest = _legend[_n1:]
 # остаток - короткими блоками по 3 строки в нижней полосе оборота (8 мм по высоте):
 # под преобразователем двумя столбцами и под кнопками
 stack([(l, LSZ, LTH) for l in _legend[:_n1]], (132.0, 122.0))
-_anch = [(146.0, 139.5), (136.0, 139.5), (112.0, 140.5), (120.0, 140.5)]
+_anch = [(146.0, 139.5), (114.0, 140.5), (146.0, 114.5)]   # низ справа, низ слева, под GPIO
 _chunks = [_rest[0:3], _rest[3:6], _rest[6:]]       # последний блок - всё, что осталось
 for _c, _a in zip(_chunks, _anch):
     if _c:
@@ -498,7 +579,7 @@ REF_FIX = {"C1": (137.78, 119.25, 0), "C2": (140.39, 123.22, 0), "C3": (135.175,
            "R1": (142.08, 116.76, 0), "R2": (140.26, 121.71, 0), "R3": (145.76, 130.6, 0, 1.0, 0.25),
            "R4": (130.11, 124.77, 0), "R5": (131.42, 120.68, 0),
            "U2": (135.4, 119.305, 0), "U1": (113.42, 110.85, 0, 1.5, 0.25),
-           "C10": (149.8, 143.6, 0), "MK1": (144.4, 113.0, 0), "C11": (141.75, 112.9, 90), "R12": (133.0, 113.5, 90), "SW1": (119.0, 135.9, 0), "C12": (144.0, 141.45, 90), "D6": (147.6, 143.6, 90), "D5": (150.5, 136.9, 0), "C13": (136.0, 141.75, 0), "C14": (139.6, 141.75, 0)}
+           "C10": (149.8, 143.6, 0), "MK1": (136.0, 116.7, 0), "C11": (141.75, 112.9, 90), "R12": (133.0, 113.5, 90), "SW1": (119.0, 135.9, 0), "C12": (144.0, 141.45, 90), "D6": (147.6, 143.6, 90), "D5": (150.5, 136.9, 0), "C13": (136.0, 141.75, 0), "C14": (139.6, 141.75, 0)}
 
 
 def place_ref(fp):
@@ -506,7 +587,7 @@ def place_ref(fp):
     t.SetTextSize(pcbnew.VECTOR2I(mm(SZ), mm(SZ)))
     t.SetTextThickness(mm(TH))
     ref = fp.GetReference()
-    if ref in ("J2", "J3"):                 # у проводов и GPIO - свои подписи
+    if ref in NOPART:                       # у проводов и групп выводов - свои подписи
         t.SetVisible(False)
         return
     t.SetVisible(True)
@@ -564,10 +645,18 @@ for _p in b.fps["J1"].Pads():
 for _g in list(b.fps["U1"].GraphicalItems()):
     if _g.GetLayer() == pcbnew.F_SilkS and tomm(_g.GetBoundingBox().GetLeft()) < X0 + 0.2:
         b.fps["U1"].Remove(_g)
-# рамка гребёнки J3 на лицевой стороне наезжает на подписи - оставляем только квадратный
+# рамки гребёнок на лицевой стороне наезжают на подписи - оставляем только квадратный
 # пад 1 как метку
-for _g in _j3silk:
-    b.fps["J3"].Remove(_g)
+for _r, _g in _hdrsilk:
+    b.fps[_r].Remove(_g)
+# Курьтъярд гребёнки (±1.81 мм) шире её корпуса (±1.27): группы стоят с пропуском
+# 0.6 мм между корпусами, и курьтъярды формально пересекаются. Это просто отверстия,
+# на заводе туда ничего не ставят - курьтъярд у них убираем.
+for _ref, _, _ in GROUPS:
+    _f = b.fps[_ref]
+    for _g in [g for g in _f.GraphicalItems() if g.GetLayer() == pcbnew.F_CrtYd]:
+        _f.Remove(_g)
+    _f.SetAllowMissingCourtyard(True)
 for _r in NOPART:
     for _g in list(b.fps[_r].GraphicalItems()):
         if _g.GetClass() == "PCB_TEXT" and _g.GetLayer() == pcbnew.F_Fab:

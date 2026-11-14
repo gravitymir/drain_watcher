@@ -312,6 +312,11 @@ def board_key(b):
         s_, e_ = t.GetStart(), t.GetEnd()
         rows.append("tr %s %s %d %d %d %d %d %d" % (t.GetClass(), t.GetNetname(), t.GetLayer(),
                                                    s_.x, s_.y, e_.x, e_.y, t.GetWidth()))
+    for z in b.Zones():                     # запретные зоны роутер тоже видит
+        if z.GetIsRuleArea():
+            o = z.Outline()
+            rows.append("ka %s %s" % (z.GetLayerSet().FmtHex(),
+                                      [(o.CVertex(i).x, o.CVertex(i).y) for i in range(o.TotalVertices())]))
     rows.append(repr(sorted(CLASSES.items())))
     rows.append(os.path.basename(JAR))
     return hashlib.sha256("\n".join(sorted(rows)).encode()).hexdigest()

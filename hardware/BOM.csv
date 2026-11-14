@@ -12,7 +12,7 @@ WS2812B-2020,D3,drain_watcher:LED_WS2812B-2020_PLCC4_2.0x2.0mm,C965555,1,про�
 4.7uH,L1,drain_watcher:L_Sunlord_SWPA4030S,C57269,1,проверить наличие на складе
 INA228AIDGSR,U2,drain_watcher:MSOP-10_3x3mm_P0.5mm,C2887910,1,проверить наличие на складе
 10R,"R1,R2",drain_watcher:R_0603_1608Metric,C22859,2,проверить наличие на складе
-4.7k,"R4,R5",drain_watcher:R_0603_1608Metric,C23162,2,проверить наличие на складе
+4.7k,"R13,R14,R4,R5",drain_watcher:R_0603_1608Metric,C23162,4,проверить наличие на складе
 5.1k,"R10,R9",drain_watcher:R_0603_1608Metric,C23186,2,проверить наличие на складе
 100k,R12,drain_watcher:R_0603_1608Metric,C25803,1,проверить наличие на складе
 10k,R7,drain_watcher:R_0603_1608Metric,C25804,1,проверить наличие на складе
