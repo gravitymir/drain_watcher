@@ -44,10 +44,15 @@ CPLHDR = {"Ref": "Designator", "PosX": "Mid X", "PosY": "Mid Y",
 # у них другое соглашение о том, в каком углу корпуса нулевой вывод: для QFP это
 # регулярно даёт расхождение на 90 градусов с официальными футпринтами KiCad.
 # Правка только в CPL - на самой плате и в схеме ничего не меняется.
-# Для этой платы поправок пока нет: после загрузки CPL проверьте в просмотрщике JLCPCB
-# пад 1 у U1 (модуль), U2 (MSOP-10), U3 (SOT-23-5) и полярность D2, D3 - при расхождении
-# угол дописывается сюда.
-ROT_FIX = {}
+# Подобрано по gen/jlc_check.py (сверка с посадочными местами JLCPCB по номерам LCSC):
+# у SOT-23-5/6 и VSSOP у EasyEDA выводы вдоль длинной стороны горизонтально, у KiCad -
+# вертикально.
+ROT_FIX = {"U2": 270, "U3": 270, "U4": 270}
+
+# Поправка положения для CPL, мм на плате (x вправо, y вниз): у EasyEDA начало координат
+# детали не там, где у KiCad. Модуль ESP32-S3 - у них центр по падам, у KiCad - по
+# корпусу с антенной; USB-C - у них по-своему по высоте.
+POS_FIX = {"U1": (3.62, 0.0), "J1": (0.0, -1.57)}
 
 
 def jlc_cpl(path):
@@ -60,9 +65,15 @@ def jlc_cpl(path):
     rows[0] = [CPLHDR.get(c, c) for c in hdr]
     ir = rows[0].index("Rotation") if "Rotation" in rows[0] else None
     fixed = []
+    ix, iy = rows[0].index("Mid X"), rows[0].index("Mid Y")
     for r in rows[1:]:
         if ir is not None and r[0] in ROT_FIX:
             r[ir] = "%.6f" % ((float(r[ir]) + ROT_FIX[r[0]]) % 360.0)
+            fixed.append(r[0])
+        if r[0] in POS_FIX:
+            dx, dy = POS_FIX[r[0]]
+            r[ix] = "%.6f" % (float(r[ix]) + dx)
+            r[iy] = "%.6f" % (float(r[iy]) - dy)       # в CPL y вверх
             fixed.append(r[0])
     with open(path, "w", newline="") as f:
         csv.writer(f).writerows(rows)

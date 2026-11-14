@@ -35,3 +35,4 @@ __pycache__/
 hardware/*.dsn
 hardware/*.freerouting.log
 hardware/*.pre_route.kicad_pcb
+hardware/gen/_easyeda_cache/
