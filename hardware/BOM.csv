@@ -6,7 +6,7 @@ MLT-5020,BZ1,drain_watcher:Buzzer_MLT-5020,C94598,1,проверить нали�
 22uF,"C11,C12",drain_watcher:C_0805_2012Metric,C45783,2,проверить наличие на складе
 B5819W,"D4,D5,D6",drain_watcher:D_SOD-123,C8598,3,проверить наличие на складе; любой Шоттки 40 В 1 А в SOD-123 (SS14 в SMA не встанет)
 SMF24A,"D2,D3",drain_watcher:D_SOD-123F,C3035828,2,проверить наличие на складе
-SMF24CA,D1,drain_watcher:D_SOD-123F,C3035829,1,проверить наличие на складе
+SMF24CA,D1,drain_watcher:D_SOD-123F_Bidirectional,C3035829,1,проверить наличие на складе
 1N4148WS,D7,drain_watcher:D_SOD-323,C2128,1,проверить наличие на складе
 ESP32-S3-WROOM-1-N8R2,U1,drain_watcher:ESP32-S3-WROOM-1,C2913204,1,проверить наличие на складе; подойдёт ESP32-S3-WROOM-1-N8 (C2913198); N16R8 - нет: восьмибитная PSRAM занимает IO35-IO37
 ICS-43434,MK1,drain_watcher:InvenSense_ICS-43434-6_3.5x2.65mm,C5656610,1,"проверить наличие на складе; снят с производства (EOL), склад мал - проверить; иначе не ставить и паять вручную"

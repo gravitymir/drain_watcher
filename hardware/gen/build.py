@@ -112,7 +112,7 @@ PARTS = {
             "A7": "USB_DM", "B7": "USB_DM", "SH": "GND"}, (JX, JY, 0)),
 
     # --- вход измерения (как на модуле INA228)
-    "D1": ("Device:D_TVS", "SMF24CA", SOD123F, {"1": "SNS_P", "2": "SNS_N"}, (145.57, 118.86, 270)),
+    "D1": ("Device:D_TVS", "SMF24CA", ("drain_watcher_extra", "D_SOD-123F_Bidirectional"), {"1": "SNS_P", "2": "SNS_N"}, (145.57, 118.86, 270)),
     "R1": ("Device:R", "10R", R0603, {"1": "INP", "2": "SNS_P"}, (UX + 6.6, 118.4, 0)),
     "R2": ("Device:R", "10R", R0603, {"1": "INN", "2": "SNS_N"}, (UX + 6.6, 120.4, 0)),
     "C3": ("Device:C", "100nF", C0603, {"1": "INP", "2": "INN"}, (UX + 4.3, 119.4, 270)),
