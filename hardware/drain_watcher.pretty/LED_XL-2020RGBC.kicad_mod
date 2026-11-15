@@ -6,9 +6,9 @@
 	(descr "XINGLIGHT XL-2020RGBC-WS2812B addressable RGB LED 2.0x2.0 mm, LCSC C5349955. Pads as in the JLCPCB/EasyEDA footprint LED-SMD_4P-L2.0-W2.0-BR-1: 1 DO, 2 GND, 3 DI, 4 VDD (same pin order as WS2812B-2020)")
 	(tags "LED RGB WS2812B 2020")
 	(property "Reference" "REF**"
-		(at 0.17 -2.19 0)
+		(at -0.33 -2.13 0)
 		(layer "F.SilkS")
-		(uuid "63b4ed2f-7b7c-4394-986d-4e682911ba9e")
+		(uuid "754ffd22-1ab7-4997-a6d3-707de0a160c6")
 		(effects
 			(font
 				(size 0.8 0.8)
@@ -20,7 +20,7 @@
 		(at 0 2 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "018ca669-6818-46b8-aea8-852827d8ae11")
+		(uuid "9e603cd0-e41e-4154-930f-184016940487")
 		(effects
 			(font
 				(size 0.8 0.8)
@@ -32,7 +32,7 @@
 		(at 0 0 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "8343482f-2cbe-4884-aa7e-3a96b34a95f1")
+		(uuid "fe818c60-cde1-4298-a1b4-ad81b4683a57")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -43,7 +43,7 @@
 		(at 0 0 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "e3949a85-9feb-4328-8a63-2d9ec4b6908b")
+		(uuid "a792d580-fae5-4205-9424-8727d023f01a")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -60,7 +60,7 @@
 			(type solid)
 		)
 		(layer "F.SilkS")
-		(uuid "47ca6ed5-5af3-4aa8-9633-ac7abf67443b")
+		(uuid "ccf31d50-20f4-4fac-a302-379206a53b82")
 	)
 	(fp_line
 		(start -1.5 -1.3)
@@ -70,7 +70,7 @@
 			(type solid)
 		)
 		(layer "F.SilkS")
-		(uuid "541ab128-b568-43f1-94f6-357f76abf940")
+		(uuid "215aa9a7-ac46-4a20-a805-28f136fcd5d4")
 	)
 	(fp_line
 		(start -1.25 1.3)
@@ -80,7 +80,7 @@
 			(type solid)
 		)
 		(layer "F.SilkS")
-		(uuid "6e689219-2caf-497d-a492-9599c10edbbf")
+		(uuid "e7214478-5abc-4474-bedb-4f4f598c198e")
 	)
 	(fp_rect
 		(start -1.4 -1.5)
@@ -91,7 +91,7 @@
 		)
 		(fill no)
 		(layer "F.CrtYd")
-		(uuid "ff5a2f58-c631-4ea1-9951-b1cc89259608")
+		(uuid "f0f82b0e-34f5-40ed-9ac0-390170543478")
 	)
 	(fp_rect
 		(start -1 -1)
@@ -102,31 +102,31 @@
 		)
 		(fill no)
 		(layer "F.Fab")
-		(uuid "7b0fefea-1a89-4ef0-9dfe-0ce4e5c3180d")
+		(uuid "067bd28f-cd37-4fca-84f8-2e4bb8a9b423")
 	)
 	(pad "1" smd rect
 		(at -0.675 -0.65)
 		(size 0.85 0.65)
 		(layers "F.Cu" "F.Mask" "F.Paste")
-		(uuid "67f0b812-f453-4ad4-a5f4-b59c35bcd2c3")
+		(uuid "65b294a5-7fd7-4e41-9bb0-3766c55a52b4")
 	)
 	(pad "2" smd rect
 		(at -0.675 0.65)
 		(size 0.85 0.65)
 		(layers "F.Cu" "F.Mask" "F.Paste")
-		(uuid "554d2772-d527-4704-9087-d9635c031bbb")
+		(uuid "4277132c-f4cc-4889-9d2a-215201c9f484")
 	)
 	(pad "3" smd rect
 		(at 0.675 0.65)
 		(size 0.85 0.65)
 		(layers "F.Cu" "F.Mask" "F.Paste")
-		(uuid "4dc8dda6-f7f3-4f3f-add5-53960d50b82c")
+		(uuid "272cbf63-dd40-4108-825f-31d3bbced302")
 	)
 	(pad "4" smd rect
 		(at 0.675 -0.65)
 		(size 0.85 0.65)
 		(layers "F.Cu" "F.Mask" "F.Paste")
-		(uuid "1737bde2-0d5a-4963-be8a-a232968cd166")
+		(uuid "f3a90ab9-2f93-4269-aa04-b9b0bb28af54")
 	)
 	(embedded_fonts no)
 )
