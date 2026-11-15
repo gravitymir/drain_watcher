@@ -520,10 +520,21 @@ def route_once(reroute):
     # отключить это из командной строки не выходит. Сужения - до 0.13 мм: это в нормах
     # JLCPCB для двухслойки (от 0.127), а зазор до соседних падов разъёма ещё остаётся
     # (при 0.15 его не хватало на сотую). Если всё же не хватит, DRC забракует попытку.
+    wide = {}
     for t in b.GetTracks():
         if t.GetClass() == "PCB_TRACK" and not t.IsLocked() and t.GetWidth() < mm(0.13):
+            wide[t.m_Uuid.AsString()] = t.GetWidth()
             t.SetWidth(mm(0.13))
     pcbnew.SaveBoard(PCB, b)
+    # где расширение съело зазор (бывает у via на тысячные мм) - вернуть исходную ширину
+    bad = drc_bad_items() & set(wide)
+    if bad:
+        b = pcbnew.LoadBoard(PCB)
+        for t in b.GetTracks():
+            if t.m_Uuid.AsString() in bad:
+                t.SetWidth(wide[t.m_Uuid.AsString()])
+        pcbnew.SaveBoard(PCB, b)
+        print("  сужения без расширения (не хватает зазора): %d" % len(bad))
     stage("cleanup")
 
     # -------------------------------------------------------------- 4. дуги
