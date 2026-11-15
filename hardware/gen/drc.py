@@ -126,7 +126,7 @@ def run(path, limit=60, clr=CLR):
             if not (i.lay & j.lay):
                 continue
             dd = seg_dist(i.a, i.bb, j.a, j.bb) - i.hw - j.hw
-            if dd < clr - 1e-6:      # ровно по правилу - не нарушение (KiCad считает в нм)
+            if dd < clr - 0.002:     # дуга - ломаной из 8 хорд, погрешность до тысячных; точно считает KiCad
                 errs.append((round(dd, 3), "%s(%s)[%.1f,%.1f-%.1f,%.1f] <-> %s(%s)[%.1f,%.1f]"
                              % (i.lbl, i.nm or "-", i.a[0], i.a[1], i.bb[0], i.bb[1],
                                 j.lbl, j.nm or "-", j.a[0], j.a[1])))

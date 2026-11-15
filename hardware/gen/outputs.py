@@ -61,6 +61,9 @@ LCSC_ANY = {
     "B5819W": "C8598",
     "4.7uH": "C57269",      # Sunlord SWPA4030S4R7MT
     "ICS-43434": "C5656610",  # TDK, LGA-6, I2S MEMS
+    "MLT-5020": "C94598",     # Huaneng, пищалка электромагнитная 5x5 мм, 4 кГц
+    "AO3400A": "C20917",      # N-MOSFET SOT-23, Basic
+    "1N4148WS": "C2128",      # SOD-323, Basic
     "USB-C": "C165948",
     "SMF24CA": "C3035829",  # PAKER, двунаправленный, SOD-123FL
     "SMF24A": "C3035828",   # PAKER, однонаправленный, SOD-123FL

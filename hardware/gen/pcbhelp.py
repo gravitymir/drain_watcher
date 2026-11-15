@@ -53,7 +53,11 @@ class Builder:
 
     # ---------------------------------------------------------- footprints
     def place(self, ref, lib, name, x, y, rot=0.0, back=False, value=""):
-        fp = pcbnew.FootprintLoad("%s/%s.pretty" % (FPDIR, lib), name)
+        libdir = "%s/%s.pretty" % (FPDIR, lib)
+        local = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fp", lib + ".pretty")
+        if not os.path.isdir(libdir) and os.path.isdir(local):
+            libdir = local                  # свои футпринты проекта (gen/fp/*.pretty)
+        fp = pcbnew.FootprintLoad(libdir, name)
         if fp is None:
             raise KeyError("%s:%s" % (lib, name))
         fp.SetFPID(pcbnew.LIB_ID(lib, name))     # без имени библиотеки KiCad ругается на несоответствие схеме

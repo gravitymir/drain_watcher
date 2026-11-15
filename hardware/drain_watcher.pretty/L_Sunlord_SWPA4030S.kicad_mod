@@ -6,9 +6,9 @@
 	(descr "Inductor, Sunlord, SWPA4030S, 4.0x4.0x3.0mm, (https://www.sunlordinc.com/UploadFiles/PDF_Cat/20120704094224784.pdf)")
 	(tags "swpa")
 	(property "Reference" "REF**"
-		(at 2.645 -3.495 270)
+		(at 2.99 -0.05 270)
 		(layer "F.SilkS")
-		(uuid "b06f0a59-62f9-455b-92b0-087a368986c0")
+		(uuid "922b423e-8fba-4c60-9a17-9dda1ace0e75")
 		(effects
 			(font
 				(size 0.8 0.8)
@@ -20,7 +20,7 @@
 		(at 0 2.95 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "2d72acde-7f14-491d-a018-92ebc5f96fa1")
+		(uuid "a92836ea-1c44-45fa-b635-837660f1edcb")
 		(effects
 			(font
 				(size 1 1)
@@ -32,7 +32,7 @@
 		(at 0 0 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "58046c95-e6f5-4356-8941-30d06b2ba9c7")
+		(uuid "99511828-85aa-4cca-9374-d50d488c6bd6")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -43,7 +43,7 @@
 		(at 0 0 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "63288b68-0c0d-4007-8f3a-bd83cd53c89f")
+		(uuid "037ef0f6-c940-40a6-b3bd-3770858cccf1")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -54,7 +54,7 @@
 		(at 0 0 0)
 		(layer "F.SilkS")
 		(hide yes)
-		(uuid "9277f1e0-7813-450d-9bdf-89f769e8eeb3")
+		(uuid "74c21f7c-601e-44ce-b2f3-689406a3c384")
 		(effects
 			(font
 				(size 1 1)
@@ -72,7 +72,7 @@
 			(type solid)
 		)
 		(layer "F.SilkS")
-		(uuid "6c071cd9-60e5-46c0-afbd-fef2c468608d")
+		(uuid "6e57e9a8-e557-4cfa-b815-6aadd6f6e875")
 	)
 	(fp_line
 		(start 2.11 2.11)
@@ -82,7 +82,7 @@
 			(type solid)
 		)
 		(layer "F.SilkS")
-		(uuid "628d878b-5b8f-4475-a024-155b6cf85b2a")
+		(uuid "2ea1e252-7050-4b1c-902d-b7aae24d9b3d")
 	)
 	(fp_line
 		(start -2.3 -2.1)
@@ -92,7 +92,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
-		(uuid "dc013858-8454-4fdb-91be-9866defdd83d")
+		(uuid "4e2cd23e-a533-4ba7-bed6-197695877f3c")
 	)
 	(fp_line
 		(start -2.3 2.1)
@@ -102,7 +102,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
-		(uuid "c3684046-9fec-4ce7-8b6d-0ffa4e4d265c")
+		(uuid "da59a4ba-9119-441e-8190-5e655c5a9aac")
 	)
 	(fp_line
 		(start -2.25 -2.25)
@@ -112,7 +112,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
-		(uuid "2a7924ca-f723-4d27-8e71-29bd67e8253e")
+		(uuid "bda5b71c-4a92-4355-b643-ee1287ecb94a")
 	)
 	(fp_line
 		(start -2.25 -2.1)
@@ -122,7 +122,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
-		(uuid "70e1055c-f2c5-478a-85c6-c716ad633a2d")
+		(uuid "647e527d-7a74-4587-9b5f-dd1adb6fe0c8")
 	)
 	(fp_line
 		(start -2.25 2.1)
@@ -132,7 +132,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
-		(uuid "901a2611-1375-4c03-82a4-fb53abfadf6f")
+		(uuid "d40aa985-8a2d-4caf-82de-7c333878ecf3")
 	)
 	(fp_line
 		(start -2.25 2.25)
@@ -142,7 +142,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
-		(uuid "d70004b9-6c61-4a8a-978f-8c5fd21b6d0b")
+		(uuid "79e74a3b-ce1c-4267-aebb-9ec68bd5dd89")
 	)
 	(fp_line
 		(start 2.25 -2.25)
@@ -152,7 +152,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
-		(uuid "aa3b88e8-62cf-46e3-a8bd-fb7559de9977")
+		(uuid "8ec4bc73-6eac-48d6-84ee-c0d2345c93b3")
 	)
 	(fp_line
 		(start 2.25 -2.1)
@@ -162,7 +162,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
-		(uuid "af310201-f1d3-4db7-a746-ce10144a0f69")
+		(uuid "476e9e77-f103-46b9-9213-46059e426484")
 	)
 	(fp_line
 		(start 2.25 2.1)
@@ -172,7 +172,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
-		(uuid "3dcaa314-0a3c-481e-8205-dbfb53718045")
+		(uuid "a4eda2f1-3e86-41d5-a7d9-72c998248c6d")
 	)
 	(fp_line
 		(start 2.25 2.25)
@@ -182,7 +182,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
-		(uuid "25965f20-abaa-4d07-86cc-19e29be368ce")
+		(uuid "3177d6e9-e13a-48df-93db-007bc6c54291")
 	)
 	(fp_line
 		(start 2.3 -2.1)
@@ -192,7 +192,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
-		(uuid "89694ddc-45a2-4a0f-80d2-592ec5dae3d9")
+		(uuid "04989c5e-88ec-409c-ac29-f5eebbc8d7e6")
 	)
 	(fp_line
 		(start 2.3 2.1)
@@ -202,7 +202,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
-		(uuid "68100b64-b356-4d59-aec3-fca618480437")
+		(uuid "215880fa-7ab3-4a72-bee4-ce03e7e684d0")
 	)
 	(fp_rect
 		(start -2 -2)
@@ -213,12 +213,12 @@
 		)
 		(fill no)
 		(layer "F.Fab")
-		(uuid "8b4c2bed-7802-4a92-82d9-df2a9565164f")
+		(uuid "80bcc738-effc-4bb8-b815-8ce419f637ad")
 	)
 	(fp_text user "${REFERENCE}"
 		(at 0 0 0)
 		(layer "F.Fab")
-		(uuid "37560ca3-1a76-4e79-bd88-5b535134a022")
+		(uuid "ccbeafd5-7a96-4c02-a26b-e294d4517047")
 		(effects
 			(font
 				(size 1 1)
@@ -231,14 +231,14 @@
 		(size 1.1 3.7)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.227273)
-		(uuid "f637aeec-f680-49c1-a476-f5f4137a11ce")
+		(uuid "9320e5f8-ccc4-405c-9b48-1de56e213213")
 	)
 	(pad "2" smd roundrect
 		(at 1.5 0)
 		(size 1.1 3.7)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.227273)
-		(uuid "f9ec2e81-3092-4bf6-8b14-25376f36c05d")
+		(uuid "cb85ccb5-14dc-4975-9de2-50e0b7a4b303")
 	)
 	(embedded_fonts no)
 	(model "${KICAD10_3DMODEL_DIR}/Inductor_SMD.3dshapes/L_Sunlord_SWPA4030S.step"

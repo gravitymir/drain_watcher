@@ -242,6 +242,154 @@ def cleanup(board):
     return len(kill)
 
 
+def unconnected_gnd_pads():
+    """(обозначение, номер) земляных падов, которые DRC KiCad считает несоединёнными."""
+    rpt = BASE + ".route_drc.json"
+    subprocess.run([cli(), "pcb", "drc", "--format", "json", "--severity-error", "-o", rpt, PCB],
+                   capture_output=True, text=True)
+    d = json.load(open(rpt, encoding="utf8"))
+    os.remove(rpt)
+    out = set()
+    for v in d.get("unconnected_items", []):
+        for it in v.get("items", []):
+            m = re.match(r"Pad (\S+) \[GND\] of (\S+)", it.get("description", ""))
+            if m:
+                out.add((m.group(2), m.group(1)))
+    return sorted(out)
+
+
+def stitch_pads(board, pads, inset=0.42):
+    """Каждому земляному паду из списка - via на основную заливку нижнего слоя и
+    короткая дорожка к ней. Место ищется по кругу вокруг пада: via - глубоко внутри
+    основной земли снизу и внутри земли сверху, дорожка от пада до via - вся внутри
+    верхней заливки (она и так отстоит от чужой меди на зазор), не в запретных зонах."""
+    fills = {}
+    for z in board.Zones():
+        if z.GetIsRuleArea() or z.GetNetname() != "GND":
+            continue
+        ly = z.GetLayer()
+        ps = z.GetFilledPolysList(ly)
+        fills.setdefault(ly, []).extend(ps.Outline(i) for i in range(ps.OutlineCount()))
+    keep = [z.Outline() for z in board.Zones() if z.GetIsRuleArea()]
+    mainb = max(fills[pcbnew.B_Cu], key=lambda c: c.Area())
+    top = fills[pcbnew.F_Cu]
+    ins = mm(inset)
+    net = board.FindNet("GND")
+    vias = [t for t in board.GetTracks() if t.GetClass() == "PCB_VIA"]
+
+    def in_top(p, d):
+        return any(c.PointInside(p) and c.Distance(p, True) >= d for c in top)
+
+    added = 0
+    for ref, num in pads:
+        fp = board.FindFootprintByReference(ref)
+        pad = next((p for p in fp.Pads() if p.GetNumber() == num), None) if fp else None
+        if pad is None:
+            continue
+        c = pad.GetPosition()
+        r0 = max(pad.GetSize().x, pad.GetSize().y) / 2
+        best = None
+        for rr in (0.7, 0.9, 1.1, 1.4, 1.7, 2.0):
+            for k in range(24):
+                a = math.radians(15 * k)
+                p = pcbnew.VECTOR2I(int(c.x + (r0 + mm(rr)) * math.cos(a)), int(c.y + (r0 + mm(rr)) * math.sin(a)))
+                if not (mainb.PointInside(p) and mainb.Distance(p, True) >= ins and in_top(p, ins)):
+                    continue
+                if any(kz.Collide(p, mm(0.45)) for kz in keep):
+                    continue
+                if any((v.GetPosition() - p).EuclideanNorm() < mm(0.9) for v in vias):
+                    continue
+                # дорожка: от края пада до via - внутри верхней заливки
+                ok = True
+                for s in range(1, 11):
+                    q = pcbnew.VECTOR2I(int(c.x + (p.x - c.x) * s / 10), int(c.y + (p.y - c.y) * s / 10))
+                    if pad.HitTest(q):
+                        continue
+                    if not in_top(q, mm(0.12)):
+                        ok = False
+                        break
+                if ok:
+                    best = p
+                    break
+            if best is not None:
+                break
+        if best is None:
+            continue
+        t = pcbnew.PCB_TRACK(board)
+        t.SetStart(c)
+        t.SetEnd(best)
+        t.SetWidth(mm(0.2))
+        t.SetLayer(pcbnew.F_Cu)
+        t.SetNet(net)
+        board.Add(t)
+        v = pcbnew.PCB_VIA(board)
+        v.SetPosition(best)
+        v.SetWidth(mm(0.6))
+        v.SetDrill(mm(0.3))
+        v.SetNet(net)
+        board.Add(v)
+        vias.append(v)
+        added += 1
+    return added
+
+
+def stitch_gnd(board, inset=0.42, step=0.2):
+    """Куски земляной заливки, отрезанные дорожками от основной, - via на основную
+    заливку другого слоя. Место - внутри куска и внутри основной заливки с запасом inset
+    (заливка уже отстоит от чужой меди на 0.25, край via - ещё на 0.12 внутри), не в
+    запретных зонах. Основная заливка слоя - самый большой её кусок."""
+    fills = {}
+    for z in board.Zones():
+        if z.GetIsRuleArea() or z.GetNetname() != "GND":
+            continue
+        ly = z.GetLayer()
+        ps = z.GetFilledPolysList(ly)
+        fills.setdefault(ly, []).extend(ps.Outline(i) for i in range(ps.OutlineCount()))
+    keep = []
+    for z in board.Zones():
+        if z.GetIsRuleArea():
+            keep.append(z.Outline())
+    vias = [t for t in board.GetTracks() if t.GetClass() == "PCB_VIA"]
+    ins = mm(inset)
+    net = board.FindNet("GND")
+
+    def deep(chain, p):
+        return chain.PointInside(p) and chain.Distance(p, True) >= ins     # True - до контура
+
+    added = 0
+    for ly, other in ((pcbnew.F_Cu, pcbnew.B_Cu), (pcbnew.B_Cu, pcbnew.F_Cu)):
+        if ly not in fills or other not in fills:
+            continue
+        main_other = max(fills[other], key=lambda c: c.Area())
+        main_here = max(fills[ly], key=lambda c: c.Area())
+        for isl in fills[ly]:
+            if isl is main_here:
+                continue
+            bb = isl.BBox()
+            done = False
+            y = bb.GetTop()
+            while y <= bb.GetBottom() and not done:
+                x = bb.GetLeft()
+                while x <= bb.GetRight():
+                    p = pcbnew.VECTOR2I(int(x), int(y))
+                    if deep(isl, p) and deep(main_other, p) and \
+                            not any(k.Collide(p, mm(0.45)) for k in keep) and \
+                            all((v.GetPosition() - p).EuclideanNorm() > mm(0.9) for v in vias):
+                        v = pcbnew.PCB_VIA(board)
+                        v.SetPosition(p)
+                        v.SetWidth(mm(0.6))
+                        v.SetDrill(mm(0.3))
+                        v.SetNet(net)
+                        board.Add(v)
+                        vias.append(v)
+                        added += 1
+                        done = True
+                        break
+                    x += mm(step)
+                y += mm(step)
+    return added
+
+
 def revert(board, recs):
     """Откатить скругления: дуга убирается, отрезки снова сходятся в изломе."""
     byid = {t.m_Uuid.AsString(): t for t in board.GetTracks()}
@@ -367,6 +515,25 @@ def route_once(reroute):
     print("скруглено изломов: %d" % len(recs))
     pcbnew.SaveBoard(PCB, b)
     fill_zones(PCB)
+    # -------------------------------------------------------------- 5. сшивка земли
+    b = pcbnew.LoadBoard(PCB)
+    n = stitch_gnd(b)
+    if n:
+        print("сшивка земли: via %d" % n)
+        pcbnew.SaveBoard(PCB, b)
+        fill_zones(PCB)
+    # земляные пады, оставшиеся без связи (заливка к ним не подошла) - своя via рядом
+    for _ in range(3):
+        lost = unconnected_gnd_pads()
+        if not lost:
+            break
+        b = pcbnew.LoadBoard(PCB)
+        n = stitch_pads(b, lost)
+        print("via у земляных падов без связи: %d из %d" % (n, len(lost)))
+        if not n:
+            break
+        pcbnew.SaveBoard(PCB, b)
+        fill_zones(PCB)
     RECS = BASE + ".fillets.json"
     for _ in range(4):
         bad = drc_bad_items()
