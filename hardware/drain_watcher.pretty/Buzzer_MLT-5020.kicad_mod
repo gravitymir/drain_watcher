@@ -6,9 +6,9 @@
 	(descr "Huaneng MLT-5020 SMD magnetic buzzer 5x5x2 mm, LCSC C94598. Pads as in the JLCPCB/EasyEDA footprint BUZ-SMD_L5.0-W5.5-P4.60: 1 +, 2 -, 3 mechanical (no connection)")
 	(tags "buzzer magnetic SMD")
 	(property "Reference" "REF**"
-		(at -5.045001 -3.095001 0)
+		(at -1.66 -3.53 0)
 		(layer "F.SilkS")
-		(uuid "3a81afaf-ac3c-441f-b422-eef9a15fe4fc")
+		(uuid "992ae708-9a02-4176-9b0c-af3e3d1f51af")
 		(effects
 			(font
 				(size 0.8 0.8)
@@ -20,7 +20,7 @@
 		(at 0 3.6 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "546d6ddd-06be-4f42-8796-f2af2a012c06")
+		(uuid "17a2f071-04fc-4e3b-83f5-05a63e4dd9d5")
 		(effects
 			(font
 				(size 0.8 0.8)
@@ -32,7 +32,7 @@
 		(at 0 0 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "2809b0cb-6ae3-41e0-8ae6-2d537364f0ab")
+		(uuid "5f8c7d80-3098-4a4a-b3f3-d02ff0188917")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -43,7 +43,7 @@
 		(at 0 0 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "e3d57331-0b87-4b0c-ae03-e1b908e7edc8")
+		(uuid "5ee6ab38-6fee-4931-b81a-24d29c557c37")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -60,7 +60,7 @@
 			(type solid)
 		)
 		(layer "F.SilkS")
-		(uuid "93f15014-7104-4b3f-b7b1-21690323300e")
+		(uuid "bf42a950-74bd-4218-b0f7-dfc8baef9592")
 	)
 	(fp_line
 		(start -1.1 -2.6)
@@ -70,7 +70,7 @@
 			(type solid)
 		)
 		(layer "F.SilkS")
-		(uuid "48ddaaae-2e2c-47e9-80ba-5046f5f817a2")
+		(uuid "da4e4593-3bdc-4285-ac11-89da7f8bfbe8")
 	)
 	(fp_line
 		(start -1.1 2.6)
@@ -80,7 +80,7 @@
 			(type solid)
 		)
 		(layer "F.SilkS")
-		(uuid "288945e6-4fb4-423e-b10a-a0f44a8bfd0c")
+		(uuid "83fd07dd-976f-4771-920b-7fd0e852bb3d")
 	)
 	(fp_line
 		(start -0.9 2)
@@ -90,7 +90,7 @@
 			(type solid)
 		)
 		(layer "F.SilkS")
-		(uuid "801f26a8-69e0-433e-b3e4-daa7c2604590")
+		(uuid "9560ef95-12a7-4976-bd25-1e6dbd805de8")
 	)
 	(fp_line
 		(start -0.6 1.7)
@@ -100,7 +100,7 @@
 			(type solid)
 		)
 		(layer "F.SilkS")
-		(uuid "0df1e03f-fd5e-46f0-8a2d-8f0537bcf3eb")
+		(uuid "b87a7537-0374-4548-9bc4-6a570aaae2c9")
 	)
 	(fp_line
 		(start 2.6 -1.1)
@@ -110,7 +110,7 @@
 			(type solid)
 		)
 		(layer "F.SilkS")
-		(uuid "58beeb4a-f576-407d-8b43-f66545ab20c0")
+		(uuid "b21adc7e-33f8-4f0d-8f3d-e601f718854d")
 	)
 	(fp_rect
 		(start -3.4 -2.75)
@@ -121,7 +121,7 @@
 		)
 		(fill no)
 		(layer "F.CrtYd")
-		(uuid "90bb551b-0221-4762-9971-e5c3f9274217")
+		(uuid "70815db8-ff2b-42f0-b3ba-9e3cdbe386e7")
 	)
 	(fp_rect
 		(start -2.5 -2.5)
@@ -132,7 +132,7 @@
 		)
 		(fill no)
 		(layer "F.Fab")
-		(uuid "89278f8d-5881-480f-9aa9-2e8f11d7b7d6")
+		(uuid "d705678f-ce3e-44c6-8dc8-324dd53053f3")
 	)
 	(fp_circle
 		(center 0 0)
@@ -143,25 +143,25 @@
 		)
 		(fill no)
 		(layer "F.Fab")
-		(uuid "4dfebd9d-b3e3-4a71-a4ce-197f95ed4560")
+		(uuid "3e7780c5-d342-4c91-8494-9a4df8c3121f")
 	)
 	(pad "1" smd rect
 		(at -2.3 1.75)
 		(size 1.7 0.7)
 		(layers "F.Cu" "F.Mask" "F.Paste")
-		(uuid "61bc7ac2-1f56-405c-8ab9-61bd6d5c210a")
+		(uuid "a64160ea-234e-462c-981f-14325d93cd76")
 	)
 	(pad "2" smd rect
 		(at 2.3 1.75)
 		(size 1.7 0.7)
 		(layers "F.Cu" "F.Mask" "F.Paste")
-		(uuid "7d5cd03a-f64b-44e9-ac55-1687e4382f20")
+		(uuid "91330dcd-abc7-446c-bd45-d7ace21ce3c9")
 	)
 	(pad "3" smd rect
 		(at -2.3 -1.75)
 		(size 1.7 0.7)
 		(layers "F.Cu" "F.Mask" "F.Paste")
-		(uuid "2690cd31-f74a-4098-a01a-f2487495eeaa")
+		(uuid "ba71341e-cc48-454a-8ff8-84c4636ed024")
 	)
 	(embedded_fonts no)
 )

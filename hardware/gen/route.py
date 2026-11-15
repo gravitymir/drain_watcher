@@ -200,6 +200,22 @@ def drc_bad_items():
     return bad
 
 
+def on_axis(o, pt, tol=5000):
+    """Точка pt (нм) - на оси дорожки o: у концов, на отрезке или на дуге (допуск tol нм)."""
+    s, e = o.GetStart(), o.GetEnd()
+    if (s - pt).EuclideanNorm() <= tol or (e - pt).EuclideanNorm() <= tol:
+        return True
+    if o.GetClass() == "PCB_ARC":
+        c = o.GetCenter()
+        return abs((pt - c).EuclideanNorm() - o.GetRadius()) <= tol and o.HitTest(pt, 0)
+    dx, dy = e.x - s.x, e.y - s.y
+    l2 = float(dx * dx + dy * dy)
+    if l2 == 0:
+        return False
+    u = max(0.0, min(1.0, ((pt.x - s.x) * dx + (pt.y - s.y) * dy) / l2))
+    return math.hypot(s.x + u * dx - pt.x, s.y + u * dy - pt.y) <= tol
+
+
 def cleanup(board):
     """Хвосты роутера (оптимизатор Freerouting не всегда запускается): via, к которым
     дорожки подходят только с одного слоя, и тупиковые отрезки, ведущие в никуда. Земля
@@ -226,8 +242,10 @@ def cleanup(board):
                 continue
             me = t.m_Uuid.AsString()
             for pt in (t.GetStart(), t.GetEnd()):
+                # соединён с дорожкой - только если конец лежит на её оси (не просто
+                # внутри ширины: огрызок короче полуширины иначе считался бы связанным)
                 ok = any(o.m_Uuid.AsString() != me and o.GetNetCode() == t.GetNetCode()
-                         and o.GetLayer() == t.GetLayer() and o.HitTest(pt, 1000) for o in tracks) \
+                         and o.GetLayer() == t.GetLayer() and on_axis(o, pt) for o in tracks) \
                     or any(v.m_Uuid.AsString() not in kill and v.GetNetCode() == t.GetNetCode()
                            and v.HitTest(pt) for v in vias) \
                     or any(p.GetNetCode() == t.GetNetCode() and p.IsOnLayer(t.GetLayer()) and p.HitTest(pt)
@@ -547,6 +565,10 @@ def route_once(reroute):
         print("  откат скруглений у нарушений зазора: %d" % len(back))
         fill_zones(PCB)
     print("дуг на плате: %d" % len(recs))
+    # после скруглений и откатов могут остаться огрызки отрезков в сотые доли мм,
+    # повисшие одним концом - та же чистка хвостов ещё раз
+    stage("cleanup")
+    fill_zones(PCB)
 
 
 # Freerouting от прогона к прогону разводит по-разному, и изредка оставляет то, что
