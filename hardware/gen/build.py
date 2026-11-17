@@ -38,15 +38,18 @@ MX, MY = 112.75, 122.0 - DY
 # Узел измерения - тот же, что на модуле INA228 (расставлен вручную в KiCad).
 TX, TY = 149.8, 117.6                       # отверстия под провода, шаг 4.6 мм
 UX, UY = 135.4, 122.0                       # INA228
-# Ряд отверстий над модулем: четыре отдельные группы (UART0, UART1, I2C, GPIO), внутри
-# группы шаг 2.54, между группами - 3.175 (пропуск виден, под каждую группу - свой
-# разъём). Первый вывод - сразу правее запретной зоны антенны, последний - у правого края.
-GX, GY = 108.0, 106.6 - DY
-GGAP = 3.175
+# Разъёмы над модулем: четыре группы (UART0, UART1, I2C, GPIO), каждая - свой JST PH
+# 2.0 боковой (S*B-PH-K-S), корпусом к верхнему краю: кабель уходит параллельно плате.
+# Торец корпуса - вровень с краем, ряд выводов - на 6.25 мм ниже. Ставятся на заводе.
+JST_FRONT = 6.25                            # от выводов до торца корпуса
+JST_CY = 2.45                               # курьтъярд за крайним выводом (по ширине)
+GX = 106.0 + JST_CY + 0.02                 # левый вывод J3: курьтъярд целиком правее запретной зоны антенны (x = 106)
+GGAP = 0.1                                  # между курьтъярдами соседних разъёмов
 JX, JY = 128.4, 141.6                       # USB-C, торцом к нижнему краю
 
 X0, X1 = 100.0, 152.0
-Y0, Y1 = 105.3 - DY, 145.8                       # верх - вплотную над отверстиями ряда (0.45 мм)
+Y0, Y1 = 100.0, 145.8                            # верх - по торцам разъёмов J3-J6
+GY = Y0 + JST_FRONT + 0.25                  # торец на 0.25 мм внутри: шелк корпуса не уходит за край
 BW, BH = X1 - X0, Y1 - Y0
 
 # ------------------------------------------------------------------ детали
@@ -72,10 +75,11 @@ GROUPS = [
                     ("28", "IO35", "IO35"), (None, "+5V", "5V")]),
 ]
 HDR = [(pn, n) for _, _, pins in GROUPS for pn, n, _ in pins]
-_gx, GPOS = GX, {}
+_gx, GPOS = GX, {}                          # x левого вывода группы
 for _ref, _, _pins in GROUPS:
     GPOS[_ref] = _gx
-    _gx += 2.54 * (len(_pins) - 1) + GGAP
+    _gx += 2.0 * (len(_pins) - 1) + 2 * JST_CY + GGAP
+GREFS = tuple(g[0] for g in GROUPS)
 
 ESP_NETS = {"1": "GND", "40": "GND", "41": "GND", "2": "+3V3", "3": "EN",
             "13": "USB_DM", "14": "USB_DP",
@@ -183,18 +187,22 @@ PARTS = {
     "D7": ("Device:D", "1N4148WS", ("Diode_SMD", "D_SOD-323"), {"1": "+3V3", "2": "BZ_N"}, (118.09, 130.56, 0)),
     "R11": ("Device:R", "10k", R0603, {"1": "BZ_G", "2": "GND"}, (122.05, 134.6, 90)),
 }
+# Поворот 180: корпус - вверх, к краю; вывод 1 - справа. Сигналы в GROUPS - слева
+# направо, поэтому i-й слева - вывод n - i.
 for _ref, _name, _pins in GROUPS:
-    PARTS[_ref] = ("Connector_Generic:Conn_01x%02d" % len(_pins), _name,
-                   ("Connector_PinHeader_2.54mm", "PinHeader_1x%02d_P2.54mm_Vertical" % len(_pins)),
-                   {str(i + 1): n for i, (_, n, _) in enumerate(_pins)}, (GPOS[_ref], GY, 90))
+    _n = len(_pins)
+    PARTS[_ref] = ("Connector_Generic:Conn_01x%02d" % _n, _name,
+                   ("Connector_JST", "JST_PH_S%dB-PH-K_1x%02d_P2.00mm_Horizontal" % (_n, _n)),
+                   {str(_n - i): n for i, (_, n, _) in enumerate(_pins)},
+                   (GPOS[_ref] + 2.0 * (_n - 1), GY, 180))
 
 b = Builder(layers=2)
 for ref, (lid, val, (fl, fn), nets, (x, y, r)) in PARTS.items():
     b.place(ref, fl, fn, x, y, r, value=val)
 
-# J2 и J3 - только отверстия: провода и гребёнку 2.54 мм впаивают по месту, а не на
-# заводе. 3D-модели нет, в BOM и в файл установки (CPL) они не попадают.
-NOPART = ("J2",) + tuple(g[0] for g in GROUPS)
+# J2 - только отверстия: провода к шунту и питание через предохранитель паяют по
+# месту, а не на заводе. 3D-модели нет, в BOM и в файл установки (CPL) он не попадает.
+NOPART = ("J2",)
 for _r in NOPART:
     _f = b.fps[_r]
     _f.Models().clear()
@@ -384,7 +392,7 @@ V("GND", XG5, c10g[1])
 # GND групп ряда - общей шиной по нижнему слою сразу под отверстиями: иначе роутер
 # отрезает земляные выводы групп от общей заливки
 YGB = GY + 1.7
-_gnds = [P(r, str(i + 1)) for r, _, pins in GROUPS for i, (_, n, _) in enumerate(pins) if n == "GND"]
+_gnds = sorted(pad_of(r, "GND") for r, _, pins in GROUPS if any(n == "GND" for _, n, _ in pins))
 for _g in _gnds:
     B("GND", [_g, (_g[0], YGB)], WP)
 B("GND", [(_gnds[0][0], YGB), (_gnds[-1][0], YGB)], WP)
@@ -444,38 +452,29 @@ for lbl, (fx, fy), (bx, by) in (("SNS+", (147.33, 117.6), (147.27, 117.65)),
                                 ("BAT+", (147.15, 130.96), (147.09, 131.01))):
     b.text(lbl, fx, fy, size=SZ, thick=TH, rot=90)
     b.text(lbl, bx, by, layer=BS, size=0.9, thick=0.18, rot=90, mirror=True)
-# Подписи выводов - под отверстиями, вертикально (на шаг 2.54 горизонтально не
-# влезают); название группы - над ней, у верхнего края; между группами - черта.
-# Всё с обеих сторон: сверху подписи ложатся поверх дорожек веером, это допустимо.
-# Шелк ряда - как его выставили вручную в KiCad: название группы (лицо, оборот) и
-# черты между группами (x, y начала, y конца).
-GTITLE = {"UART0": ((112.35, 111.28), (112.31, 111.26)), "UART1": ((122.69, 111.29), (122.59, 111.28)),
-          "I2C": ((133.26, 111.83), (133.28, 111.83)), "GPIO": ((146.19, 111.97), (146.23, 112.0))}
-GTITLE = {k: ((f[0], f[1] - DY), (bk[0], bk[1] - DY)) for k, (f, bk) in GTITLE.items()}   # вместе с рядом
-GSEP = [(x, y0 - DY, y1 - DY) for x, y0, y1 in
-        [(117.21, 107.9, 111.5), (128.03, 108.06, 111.66), (138.89, 107.87, 111.47)]]
-_hdrsilk = []
+# Разъёмы: на лице - название группы под корпусом, между ним и модулем. На обороте
+# (там над выводами свободно) - название у края, подписи выводов вертикально над
+# выводами и черты между группами.
+GT_FY = GY + 2.05                           # центр названий на лице: под корпусом, над падами модуля
+_gx = []
 for _ref, _name, _pins in GROUPS:
-    for i, (_, n, lbl) in enumerate(_pins):
-        x, y = P(_ref, str(i + 1))
-        for _ly, _mr in ((pcbnew.F_SilkS, False), (BS, True)):
-            _t = b.text(lbl, x, y, layer=_ly, size=0.8, thick=0.15, rot=90, mirror=_mr)
-            _top = tomm(_t.GetBoundingBox().GetTop())      # верх надписи - сразу под отверстием
-            _t.SetPosition(pcbnew.VECTOR2I(mm(x), mm(y + (y - _top) + 1.15)))
-    # название группы - под подписями выводов (выставлено вручную в KiCad)
-    (_fx, _fy), (_bx, _by) = GTITLE[_name]
-    b.text(_name, _fx, _fy, size=1.0, thick=0.25)
-    b.text(_name, _bx, _by, layer=BS, size=1.0, thick=0.25, mirror=True)
-    _hdrsilk += [(_ref, g) for g in b.fps[_ref].GraphicalItems() if g.GetLayer() == pcbnew.F_SilkS]
-for _xs, _y0, _y1 in GSEP:
-    for _ly in (pcbnew.F_SilkS, BS):
-        _ln = pcbnew.PCB_SHAPE(b.b)
-        _ln.SetShape(pcbnew.SHAPE_T_SEGMENT)
-        _ln.SetStart(pcbnew.VECTOR2I(mm(_xs), mm(_y0)))
-        _ln.SetEnd(pcbnew.VECTOR2I(mm(_xs), mm(_y1)))
-        _ln.SetWidth(mm(0.15))
-        _ln.SetLayer(_ly)
-        b.b.Add(_ln)
+    _xs = [pad_of(_ref, n)[0] for _, n, _ in _pins]
+    _gx.append((min(_xs), max(_xs)))
+    _xc = (min(_xs) + max(_xs)) / 2
+    b.text(_name, _xc, GT_FY, size=0.8, thick=0.15)
+    b.text(_name, _xc, Y0 + 1.0, layer=BS, size=1.0, thick=0.25, mirror=True)
+    for _, n, lbl in _pins:
+        x, y = pad_of(_ref, n)
+        _t = b.text(lbl, x, y, layer=BS, size=0.8, thick=0.15, rot=90, mirror=True)
+        _t.Move(pcbnew.VECTOR2I(0, mm(y - 1.1) - _t.GetBoundingBox().GetBottom()))
+for (_, _r), (_l, _) in zip(_gx, _gx[1:]):
+    _ln = pcbnew.PCB_SHAPE(b.b)
+    _ln.SetShape(pcbnew.SHAPE_T_SEGMENT)
+    _ln.SetStart(pcbnew.VECTOR2I(mm((_r + _l) / 2), mm(Y0 + 0.5)))
+    _ln.SetEnd(pcbnew.VECTOR2I(mm((_r + _l) / 2), mm(GY - 1.1)))
+    _ln.SetWidth(mm(0.15))
+    _ln.SetLayer(BS)
+    b.b.Add(_ln)
 b.text("RST", 111.61, 138.11, size=1.0, thick=0.25)       # над кнопками (выставлено вручную в KiCad)
 b.text("BOOT", 119.91, 138.08, size=1.0, thick=0.25)
 b.text("RGB LED", 129.4, 113.1, size=0.8, thick=0.15)          # над D8
@@ -696,7 +695,7 @@ def place_ref(fp):
     t.SetTextSize(pcbnew.VECTOR2I(mm(SZ), mm(SZ)))
     t.SetTextThickness(mm(TH))
     ref = fp.GetReference()
-    if ref in NOPART:                       # у проводов и групп выводов - свои подписи
+    if ref in NOPART or ref in GREFS:       # у проводов и разъёмов групп - свои подписи
         t.SetVisible(False)
         return
     t.SetVisible(True)
@@ -754,18 +753,6 @@ for _p in b.fps["J1"].Pads():
 for _g in list(b.fps["U1"].GraphicalItems()):
     if _g.GetLayer() == pcbnew.F_SilkS and tomm(_g.GetBoundingBox().GetLeft()) < X0 + 0.2:
         b.fps["U1"].Remove(_g)
-# рамки гребёнок на лицевой стороне наезжают на подписи - оставляем только квадратный
-# пад 1 как метку
-for _r, _g in _hdrsilk:
-    b.fps[_r].Remove(_g)
-# Курьтъярд гребёнки (±1.81 мм) шире её корпуса (±1.27): группы стоят с пропуском
-# 0.6 мм между корпусами, и курьтъярды формально пересекаются. Это просто отверстия,
-# на заводе туда ничего не ставят - курьтъярд у них убираем.
-for _ref, _, _ in GROUPS:
-    _f = b.fps[_ref]
-    for _g in [g for g in _f.GraphicalItems() if g.GetLayer() == pcbnew.F_CrtYd]:
-        _f.Remove(_g)
-    _f.SetAllowMissingCourtyard(True)
 for _r in NOPART:
     for _g in list(b.fps[_r].GraphicalItems()):
         if _g.GetClass() == "PCB_TEXT" and _g.GetLayer() == pcbnew.F_Fab:

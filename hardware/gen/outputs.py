@@ -16,6 +16,12 @@ b = pcbnew.LoadBoard(path)
 
 rows = defaultdict(list)
 tht = {}
+# Разъёмы, которые завод впаивает сам (выводные, тариф Standard PCBA): футпринт -> деталь.
+# Номер LCSC - в LCSC_ANY: без него JLCPCB считает деталь не выбранной и не ставит.
+CONN_FP = {
+    "JST_PH_S4B-PH-K_1x04_P2.00mm_Horizontal": "S4B-PH-K-S",
+    "JST_PH_S5B-PH-K_1x05_P2.00mm_Horizontal": "S5B-PH-K-S",
+}
 for fp in b.GetFootprints():
     ref = fp.GetReference()
     if ref.startswith("REF") or not ref:
@@ -26,7 +32,8 @@ for fp in b.GetFootprints():
     if not pads or all(p.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH for p in pads):
         continue        # крепёжные отверстия: паять нечего, в BOM для сборки не нужны
     fid = "%s:%s" % (fp.GetFPID().GetLibNickname(), fp.GetFPID().GetLibItemName())
-    rows[(fp.GetValue(), fid)].append(ref)
+    # у разъёмов "номинал" - название группы (UART0, I2C...), а деталь определяет футпринт
+    rows[(CONN_FP.get(fid.split(":")[-1], fp.GetValue()), fid)].append(ref)
     # Выводные детали (гребёнки) в SMT-монтаж не идут - помечаем, чтобы не советовать
     # для них номер LCSC как для устанавливаемой автоматом.
     if all(p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH for p in pads):
@@ -66,6 +73,8 @@ LCSC_ANY = {
     "AO3400A": "C20917",      # N-MOSFET SOT-23, Basic
     "1N4148WS": "C2128",      # SOD-323, Basic
     "USB-C": "C165948",
+    "S4B-PH-K-S": "C157926",  # JST PH 2.0, 4 конт., боковой (S4B-PH-K-S(LF)(SN))
+    "S5B-PH-K-S": "C157923",  # JST PH 2.0, 5 конт., боковой (S5B-PH-K-S(LF)(SN))
     "SMF24CA": "C3035829",  # PAKER, двунаправленный, SOD-123FL
     "SMF24A": "C3035828",   # PAKER, однонаправленный, SOD-123FL
     # XKB TS-1187A-B-A-B: корпус 5.1x5.1

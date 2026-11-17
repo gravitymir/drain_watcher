@@ -10,6 +10,8 @@ SMF24CA,D1,drain_watcher:D_SOD-123F_Bidirectional,C3035829,1,проверить 
 1N4148WS,D7,drain_watcher:D_SOD-323,C2128,1,проверить наличие на складе
 ESP32-S3-WROOM-1-N8R2,U1,drain_watcher:ESP32-S3-WROOM-1,C2913204,1,проверить наличие на складе; подойдёт ESP32-S3-WROOM-1-N8 (C2913198); N16R8 - нет: восьмибитная PSRAM занимает IO35-IO37
 ICS-43434,MK1,drain_watcher:InvenSense_ICS-43434-6_3.5x2.65mm,C5656610,1,"проверить наличие на складе; снят с производства (EOL), склад мал - проверить; иначе не ставить и паять вручную"
+S4B-PH-K-S,"J3,J4,J5",drain_watcher:JST_PH_S4B-PH-K_1x04_P2.00mm_Horizontal,C157926,3,проверить наличие на складе
+S5B-PH-K-S,J6,drain_watcher:JST_PH_S5B-PH-K_1x05_P2.00mm_Horizontal,C157923,1,проверить наличие на складе
 XL-2020RGBC-WS2812B,D8,drain_watcher:LED_XL-2020RGBC,C5349955,1,проверить наличие на складе
 4.7uH,L1,drain_watcher:L_Sunlord_SWPA4030S,C57269,1,проверить наличие на складе
 INA228AIDGSR,U2,drain_watcher:MSOP-10_3x3mm_P0.5mm,C2887910,1,проверить наличие на складе
