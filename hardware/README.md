@@ -210,7 +210,8 @@ J2 (провода к шунту и питание) — только отвер�
 
 Плату не рисовали мышкой: схему, размещение, ручную разводку критичных цепей и шелк
 описывает `gen/build.py`, остальное разводит Freerouting через `gen/route.py`, после чего
-углы скругляются дугами. Нужен Python из KiCad 10, а для перетрассировки — Java 21+ и
+углы скругляются дугами. Плату строит обычный Python 3 с `pcbnew` из kroute (`../autorouter`
+или `KROUTE_DIR`), разводку `gen/route.py` пока ведёт Python из KiCad 10 (Specctra), а для перетрассировки — Java 21+ и
 [Freerouting 2.5](https://github.com/freerouting/freerouting/releases) (переменные
 `JAVA` и `FREEROUTING_JAR`, по умолчанию `~/tools/jre/*/bin/java` и
 `~/tools/freerouting/freerouting-2.5.0.jar`).
@@ -219,8 +220,9 @@ J2 (провода к шунту и питание) — только отвер�
 sh gen/check.sh
 ```
 
-Скрипт пересобирает схему и плату, разводит её и прогоняет DRC KiCad с проверкой схемы
-против платы, ERC, зазоры, связность, courtyard и шелк. Выходные файлы для заказа:
+Скрипт пересобирает схему и плату, разводит её и прогоняет DRC, сверку схемы с платой и ERC
+(`kroute`, отчёты `drc.rpt`, `erc.rpt`), зазоры, связность, courtyard и шелк. Правил шелкографии
+из DRC KiCad kroute пока не проверяет. Выходные файлы для заказа:
 
 ```bash
 "/c/Program Files/KiCad/10.0/bin/python.exe" gen/outputs.py drain_watcher.kicad_pcb
