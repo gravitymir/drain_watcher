@@ -221,8 +221,7 @@ sh gen/check.sh
 ```
 
 Скрипт пересобирает схему и плату, разводит её и прогоняет DRC, сверку схемы с платой и ERC
-(`kroute`, отчёты `drc.rpt`, `erc.rpt`), зазоры, связность, courtyard и шелк. Правил шелкографии
-из DRC KiCad kroute пока не проверяет. Выходные файлы для заказа:
+(`kroute`, отчёты `drc.rpt`, `erc.rpt`), зазоры, связность, courtyard и шелк. Выходные файлы для заказа:
 
 ```bash
 "/c/Program Files/KiCad/10.0/bin/python.exe" gen/outputs.py drain_watcher.kicad_pcb
