@@ -3,8 +3,9 @@
 
     python gen/export.py hardware
 
-Всё делает kicad-cli, здесь только один и тот же набор ключей для всех плат,
-чтобы у двух плат сходились имена файлов и настройки.
+Всё делает kroute (без KiCad) по ключам kicad-cli; здесь только один и тот же
+набор ключей для всех плат, чтобы у плат сходились имена файлов и настройки.
+Запуск со всеми выходными файлами: sh gen/export.sh
 """
 import glob
 import os
@@ -20,18 +21,10 @@ LAYERS = ("F.Cu,B.Cu,F.Paste,B.Paste,"
           "F.Silkscreen,B.Silkscreen,F.Mask,B.Mask,Edge.Cuts")      # плата 2-слойная
 
 
-def cli():
-    """kicad-cli рядом с тем pcbnew, которым собрана плата."""
-    exe = "kicad-cli.exe" if os.name == "nt" else "kicad-cli"
-    near = os.path.join(os.path.dirname(os.path.dirname(kicadenv.share_dir())), "bin", exe)
-    return near if os.path.exists(near) else exe
-
-
 def run(*args):
-    r = subprocess.run([cli()] + list(args), capture_output=True, text=True)
-    if r.returncode != 0:
-        raise SystemExit("kicad-cli %s:\n%s" % (args[:3], r.stderr.strip()[-800:]))
-    return r.stdout.strip()
+    """Аргументы kicad-cli; делает kroute (python/kroute_cli.py, PYTHONPATH=<kroute>/python)."""
+    from kroute_cli import run as kroute_run
+    return kroute_run(*args)
 
 
 # JLCPCB разбирает CPL по именам колонок и родные заголовки KiCad не понимает -
@@ -86,7 +79,7 @@ def jlc_cpl(path):
 
 
 def main(out):
-    out = os.path.abspath(out)              # kicad-cli путается в относительных путях
+    out = os.path.abspath(out)
     name = "drain_watcher"
     pcb = os.path.join(out, name + ".kicad_pcb")
     sch = os.path.join(out, name + ".kicad_sch")

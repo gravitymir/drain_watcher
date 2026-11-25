@@ -1,8 +1,8 @@
 M48
-; DRILL file KiCad 10.0.3 date 2026-11-25T20:24:24
+; DRILL file kroute (kplot 0.1.0) date 2026-11-25T21:25:47
 ; FORMAT={-:-/ absolute / metric / decimal}
-; #@! TF.CreationDate,2026-11-25T20:24:24+00:00
-; #@! TF.GenerationSoftware,Kicad,Pcbnew,10.0.3
+; #@! TF.CreationDate,2026-11-25T21:25:47+00:00
+; #@! TF.GenerationSoftware,kroute,kplot,0.1.0
 ; #@! TF.FileFunction,NonPlated,1,2,NPTH
 FMAT,2
 METRIC

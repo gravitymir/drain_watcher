@@ -218,11 +218,12 @@ sh gen/check.sh
 ```
 
 Скрипт пересобирает схему и плату, разводит её и прогоняет DRC, сверку схемы с платой и ERC
-(`kroute`, отчёты `drc.rpt`, `erc.rpt`), зазоры, связность, courtyard и шелк. Выходные файлы для заказа:
+(`kroute`, отчёты `drc.rpt`, `erc.rpt`), зазоры, связность, courtyard и шелк. Выходные файлы для заказа
+(BOM, гербера, сверловка, `pos.csv`, PDF платы и схемы, архив) — тоже без KiCad, их делает
+`kroute gerber/drill/pos/pdf`:
 
 ```bash
-"/c/Program Files/KiCad/10.0/bin/python.exe" gen/outputs.py drain_watcher.kicad_pcb
-"/c/Program Files/KiCad/10.0/bin/python.exe" gen/export.py .
+sh gen/export.sh
 ```
 
 ### Как устроена разводка
