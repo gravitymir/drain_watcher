@@ -1,87 +1,60 @@
 #!/usr/bin/env python3
-"""Автотрассировка платы через Freerouting и скругление углов дугами.
+"""Автотрассировка платы kroute и скругление углов дугами, без KiCad.
 
-    "C:/Program Files/KiCad/10.0/bin/python.exe" gen/route.py drain_watcher.kicad_pcb [--reroute]
+    PYTHONPATH=<kroute>/python python gen/route.py drain_watcher.kicad_pcb [--reroute]
 
-1. Плата (после build.py, с ручной разводкой - она заблокирована) -> Specctra DSN.
-   В DSN дописываются классы цепей (ширина питания) и режим углов 45 градусов.
-2. Freerouting разводит остальное -> .ses. Результат кэшируется: если DSN не
-   изменился, берётся прошлый .ses (он лежит в репозитории), роутер не запускается.
-   --reroute - развести заново.
-3. .ses импортируется в плату, каждый излом дорожки заменяется дугой (радиус до
-   R_FILLET), затем DRC: дуги, из-за которых нарушен зазор, откатываются обратно
-   в излом.
+1. kroute route разводит всё, что не развела build.py (ручная разводка там
+   заблокирована и остаётся как есть). Ширины цепей - CLASSES (правила [[net]]
+   во временном kroute.toml), углы 45 градусов.
+2. Новая медь кэшируется в drain_watcher.routes.json (kroute route --emit) с ключом
+   .routes.key: пока не менялись детали, их места, цепи падов, ручная разводка и
+   CLASSES, трассировщик не запускается, медь накладывает kroute apply. --reroute -
+   развести заново.
+3. Чистка хвостов, каждый излом -> дуга (радиус до R_FILLET), сшивка земли via,
+   затем kroute drc: дуги, из-за которых нарушен зазор, откатываются обратно в излом.
 
-Freerouting: переменные FREEROUTING_JAR и JAVA, по умолчанию - C:/Users/<you>/tools.
+kroute ищется как в pcbnew-заглушке: переменная KROUTE, иначе свежая сборка в
+репозитории kroute.
 """
-import glob, hashlib, json, math, os, re, shutil, subprocess, sys
+import hashlib, json, math, os, re, shutil, subprocess, sys, tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import kicadenv
-kicadenv.quiet()
 import pcbnew
+from pcbnew.board import kroute_exe
 from pcbhelp import mm, tomm, fill_zones
 
 PCB = os.path.abspath(sys.argv[1])
 REROUTE = "--reroute" in sys.argv
 BASE = os.path.splitext(PCB)[0]
-DSN, SES, KEY = BASE + ".dsn", BASE + ".ses", BASE + ".ses.key"
+ROUTES, KEY = BASE + ".routes.json", BASE + ".routes.key"
 R_FILLET = 1.0                              # мм, наибольший радиус скругления
+TIMEOUT = 120                               # с, бюджет kroute route
 
-# Классы цепей для роутера: ширина дорожки, мм. Остальное - 0.2.
+# Ширина дорожек по цепям для kroute, мм. Остальное - из netclass (0.2).
 CLASSES = {
     "pwr": (0.5, ["VBAT", "VIN", "SW", "+5V_B"]),
     "pwr4": (0.4, ["+5V", "VBUS", "+3V3", "GND"]),
-    # пады USB-C - 0.3 мм с шагом 0.5: дорожка 0.2 между ними не проходит, и роутер
-    # сам сужал её до 0.1 (меньше нормы). Сразу 0.15 - в норме JLCPCB.
+    # пады USB-C - 0.3 мм с шагом 0.5: дорожка 0.2 между ними не проходит
     "usb": (0.15, ["USB_DP", "USB_DM", "CC1", "CC2"]),
 }
-TOOLS = os.path.join(os.path.expanduser("~"), "tools")
-JAR = os.environ.get("FREEROUTING_JAR") or os.path.join(TOOLS, "freerouting", "freerouting-2.5.0.jar")
-JAVA = os.environ.get("JAVA") or (glob.glob(os.path.join(TOOLS, "jre", "*", "bin", "java.exe")) +
-                                  glob.glob(os.path.join(TOOLS, "jre", "*", "bin", "java")) + ["java"])[0]
 
 
-def cli():
-    exe = "kicad-cli.exe" if os.name == "nt" else "kicad-cli"
-    near = os.path.join(os.path.dirname(os.path.dirname(kicadenv.share_dir())), "bin", exe)
-    return near if os.path.exists(near) else exe
+def kroute(*args):
+    """kroute с разбором JSON-ответа; сбой - выход с его сообщением."""
+    r = subprocess.run([kroute_exe(), *args], capture_output=True, text=True, encoding="utf-8")
+    try:
+        return json.loads(r.stdout)
+    except ValueError:
+        raise SystemExit("kroute %s: %s" % (args[0], (r.stderr or r.stdout).strip()[-1500:]))
 
 
-# ------------------------------------------------------------------ 1. DSN
-def patch_dsn(text):
-    """Классы цепей и углы 45 градусов в DSN, который пишет KiCad."""
-    m = re.search(r"\(class kicad_default ([^(]*)", text)
-    names = m.group(1).split()
-    moved = {n for _, (_, ns) in CLASSES.items() for n in ns}
-    q = lambda n: '"%s"' % n if re.search(r"[^A-Za-z0-9_]", n) else n
-    unq = lambda n: n.strip('"')
-    keep = [n for n in names if unq(n) not in moved]
-    text = text[:m.start(1)] + " ".join(keep) + "\n      " + text[m.end(1):]
-    # блок kicad_default целиком - образец для новых классов
-    i = text.index("(class kicad_default")
-    depth, j = 0, i
-    while True:
-        if text[j] == "(":
-            depth += 1
-        elif text[j] == ")":
-            depth -= 1
-            if depth == 0:
-                break
-        j += 1
-    present = {unq(n) for n in names}
-    add = ""
-    for cname, (w, nets) in CLASSES.items():
-        nets = [n for n in nets if n in present]
-        if not nets:
-            continue
-        add += ('\n    (class %s %s\n      (circuit\n        (use_via "Via[0-1]_600:300_um")\n      )\n'
-                '      (rule\n        (width %d)\n        (clearance 200)\n      )\n    )'
-                % (cname, " ".join(q(n) for n in nets), round(w * 1000)))
-    text = text[:j + 1] + add + text[j + 1:]
-    # только 45 градусов: два излома по 45 вместо прямого угла
-    text = text.replace("(structure", "(structure\n    (snap_angle fortyfive_degree)", 1)
-    return text
+def rules_toml():
+    """CLASSES -> правила kroute.toml."""
+    out = []
+    for _, (w, nets) in sorted(CLASSES.items()):
+        for n in nets:
+            out.append('[[net]]\nmatch = "%s"\nwidth = %g\n' % (n, w))
+    return "\n".join(out)
 
 
 def P(v):
@@ -123,7 +96,7 @@ def fillet_all(board):
                 best = min(best, tpar)
         return best
 
-    blocked = []      # центры via и падов: допуск - округление координат в DSN/SES
+    blocked = []      # центры via и падов
     for t in board.GetTracks():
         if t.GetClass() == "PCB_VIA":
             blocked.append(P(t.GetPosition()))
@@ -185,18 +158,25 @@ def fillet_all(board):
     return recs
 
 
+def drc():
+    """kroute drc платы (заливку он перезаливает сам, в памяти)."""
+    return kroute("drc", PCB)
+
+
+# медь ближе зазора: по этим видам откатываются дуги и расширения
+CLEARANCE = ("clearance", "tracks_crossing", "shorting_items", "copper_edge_clearance",
+             "hole_clearance", "solder_mask_bridge")
+# всё, что относится к трассировке (как ok в kroute drc)
+ROUTING = CLEARANCE + ("hole_to_hole", "track_width", "via_diameter", "annular_width",
+                       "drill_out_of_range", "track_dangling", "via_dangling", "items_not_allowed")
+
+
 def drc_bad_items():
-    """uuid объектов, у которых DRC нашёл нарушение зазора или пересечение."""
-    rpt = BASE + ".route_drc.json"
-    subprocess.run([cli(), "pcb", "drc", "--format", "json", "--severity-error", "-o", rpt, PCB],
-                   capture_output=True, text=True)
+    """uuid дорожек и via, у которых DRC нашёл нарушение зазора или пересечение."""
     bad = set()
-    for v in json.load(open(rpt, encoding="utf8")).get("violations", []):
-        if v.get("type") in ("clearance", "tracks_crossing", "shorting_items", "copper_edge_clearance",
-                             "hole_clearance", "solder_mask_bridge"):
-            for it in v.get("items", []):
-                bad.add(it.get("uuid"))
-    os.remove(rpt)
+    for v in drc().get("markers", []):
+        if v.get("type") in CLEARANCE:
+            bad.update(u for u in v.get("uuids", []) if u)
     return bad
 
 
@@ -217,11 +197,10 @@ def on_axis(o, pt, tol=5000):
 
 
 def cleanup(board):
-    """Хвосты роутера (оптимизатор Freerouting не всегда запускается): via, к которым
+    """Хвосты трассировки: via, к которым
     дорожки подходят только с одного слоя, и тупиковые отрезки, ведущие в никуда. Земля
     не трогается (её via сшивают заливки), ручная разводка - тоже (она заблокирована)."""
-    # Удаление - только в самом конце: после Remove() SWIG в KiCad 10 теряет типы
-    # у прокси-объектов. До того - помечаем и пересчитываем без помеченных.
+    # помечаем и пересчитываем без помеченных, удаление - в самом конце
     items = list(board.GetTracks())
     pads = [p for fp in board.GetFootprints() for p in fp.Pads()]
     kill = set()
@@ -233,8 +212,8 @@ def cleanup(board):
             if v.GetNetname() == "GND" or v.IsLocked() or v.m_Uuid.AsString() in kill:
                 continue
             pos, r = v.GetPosition(), v.GetWidth(pcbnew.F_Cu) // 2
-            lays = {t.GetLayer() for t in tracks if t.GetNetCode() == v.GetNetCode()
-                    and min((t.GetStart() - pos).EuclideanNorm(), (t.GetEnd() - pos).EuclideanNorm()) < r}
+            # дорожка у via концом или проходит через неё (kroute ставит via на линию)
+            lays = {t.GetLayer() for t in tracks if t.GetNetCode() == v.GetNetCode() and on_axis(t, pos, r)}
             if len(lays) < 2 and not any(p.GetNetCode() == v.GetNetCode() and p.HitTest(pos) for p in pads):
                 kill.add(v.m_Uuid.AsString())
         for t in tracks:
@@ -242,10 +221,11 @@ def cleanup(board):
                 continue
             me = t.m_Uuid.AsString()
             for pt in (t.GetStart(), t.GetEnd()):
-                # соединён с дорожкой - только если конец лежит на её оси (не просто
-                # внутри ширины: огрызок короче полуширины иначе считался бы связанным)
+                # соединён с дорожкой, если конец внутри её меди: kroute примыкает
+                # к дорожке сбоку (T) с точностью своей сетки, не точно на ось
                 ok = any(o.m_Uuid.AsString() != me and o.GetNetCode() == t.GetNetCode()
-                         and o.GetLayer() == t.GetLayer() and on_axis(o, pt) for o in tracks) \
+                         and o.GetLayer() == t.GetLayer() and on_axis(o, pt, max(5000, o.GetWidth() // 2))
+                         for o in tracks) \
                     or any(v.m_Uuid.AsString() not in kill and v.GetNetCode() == t.GetNetCode()
                            and v.HitTest(pt) for v in vias) \
                     or any(p.GetNetCode() == t.GetNetCode() and p.IsOnLayer(t.GetLayer()) and p.HitTest(pt)
@@ -261,16 +241,13 @@ def cleanup(board):
 
 
 def unconnected_gnd_pads():
-    """(обозначение, номер) земляных падов, которые DRC KiCad считает несоединёнными."""
-    rpt = BASE + ".route_drc.json"
-    subprocess.run([cli(), "pcb", "drc", "--format", "json", "--severity-error", "-o", rpt, PCB],
-                   capture_output=True, text=True)
-    d = json.load(open(rpt, encoding="utf8"))
-    os.remove(rpt)
+    """(обозначение, номер) земляных падов, которые DRC считает несоединёнными."""
     out = set()
-    for v in d.get("unconnected_items", []):
+    for v in drc().get("markers", []):
+        if v.get("type") != "unconnected_items":
+            continue
         for it in v.get("items", []):
-            m = re.match(r"Pad (\S+) \[GND\] of (\S+)", it.get("description", ""))
+            m = re.match(r"Pad (\S+) \[GND\] of (\S+)", it)
             if m:
                 out.add((m.group(2), m.group(1)))
     return sorted(out)
@@ -421,53 +398,25 @@ def revert(board, recs):
             t = byid[u]
             t.SetStart(c) if e == "s" else t.SetEnd(c)
         gone.append(a)
-    for a in gone:                          # удаление - последним (SWIG в KiCad 10)
+    for a in gone:
         board.Remove(a)
 
 
-def stage(name, arg=None):
-    """Шаг с удалением объектов - в отдельном процессе: после Remove() SWIG в KiCad 10
-    теряет типы у всех прокси-объектов процесса, и дальше с платой работать нельзя."""
-    cmd = [sys.executable, os.path.abspath(__file__), PCB, "--stage", name] + ([arg] if arg else [])
-    r = subprocess.run(cmd, capture_output=True, text=True)
-    out = "\n".join(l for l in (r.stdout + r.stderr).splitlines()
-                    if not re.search(r"assert|image handler|memory leak", l, re.I))
-    if r.returncode != 0:
-        raise SystemExit("шаг %s:\n%s" % (name, out[-1500:]))
-    if out.strip():
-        print(out.strip())
-
-
-if "--stage" in sys.argv:
-    _st = sys.argv[sys.argv.index("--stage") + 1]
-    b = pcbnew.LoadBoard(PCB)
-    if _st == "cleanup":
-        print("убрано хвостов роутера: %d" % cleanup(b))
-    elif _st == "revert":
-        revert(b, json.load(open(sys.argv[sys.argv.index("--stage") + 2], encoding="utf8")))
-    pcbnew.SaveBoard(PCB, b)
-    sys.exit(0)
-
-
 def drc_errors():
-    """Ошибки DRC (не предупреждения) плюс несоединённые пады."""
-    rpt = BASE + ".route_drc.json"
-    subprocess.run([cli(), "pcb", "drc", "--format", "json", "--severity-error", "-o", rpt, PCB],
-                   capture_output=True, text=True)
-    d = json.load(open(rpt, encoding="utf8"))
-    os.remove(rpt)
+    """Нарушения трассировки (зазоры, ширины, висящая медь) плюс несоединённое."""
     kinds = {}
-    for v in d.get("violations", []) + d.get("unconnected_items", []):
-        kinds[v.get("type")] = kinds.get(v.get("type"), 0) + 1
+    for v in drc().get("markers", []):
+        t = v.get("type")
+        if t == "unconnected_items" or t in ROUTING:
+            kinds[t] = kinds.get(t, 0) + 1
     if kinds:
         print("   DRC:", ", ".join("%s %d" % kv for kv in sorted(kinds.items())))
     return sum(kinds.values())
 
 
 def board_key(b):
-    """Ключ кэша разводки - по тому, что видит роутер: детали и их места, цепи падов,
-    ручные дорожки и via, классы цепей. Сам DSN для этого не годится: порядок деталей
-    и номера образов в нём KiCad выдаёт каждый раз другие."""
+    """Ключ кэша разводки - по тому, что видит трассировщик: детали и их места, цепи
+    падов, ручные дорожки и via, запретные зоны, ширины цепей."""
     rows = []
     for fp in b.GetFootprints():
         q = fp.GetPosition()
@@ -478,56 +427,60 @@ def board_key(b):
         s_, e_ = t.GetStart(), t.GetEnd()
         rows.append("tr %s %s %d %d %d %d %d %d" % (t.GetClass(), t.GetNetname(), t.GetLayer(),
                                                    s_.x, s_.y, e_.x, e_.y, t.GetWidth()))
-    for z in b.Zones():                     # запретные зоны роутер тоже видит
+    for z in b.Zones():                     # запретные зоны трассировщик тоже видит
         if z.GetIsRuleArea():
             o = z.Outline()
             rows.append("ka %s %s" % (z.GetLayerSet().FmtHex(),
                                       [(o.CVertex(i).x, o.CVertex(i).y) for i in range(o.TotalVertices())]))
     rows.append(repr(sorted(CLASSES.items())))
-    rows.append(os.path.basename(JAR))
+    rows.append("kroute t=%d" % TIMEOUT)
     return hashlib.sha256("\n".join(sorted(rows)).encode()).hexdigest()
 
 
-def route_once(reroute):
-    """DSN -> Freerouting (или кэш) -> импорт -> чистка хвостов -> дуги."""
+def route(reroute):
+    """kroute route (или кэш routes.json) -> медь на плате."""
+    key = board_key(pcbnew.LoadBoard(PCB))
+    cached = os.path.exists(ROUTES) and os.path.exists(KEY) and open(KEY).read().strip() == key
+    tmp = tempfile.mkdtemp(prefix="route_")
+    try:
+        out = os.path.join(tmp, os.path.basename(PCB))
+        if cached and not reroute:
+            print("kroute: плата для трассировщика не изменилась - медь из", os.path.basename(ROUTES))
+            r = kroute("apply", PCB, ROUTES, "-o", out)
+            print("   дорожек %d, via %d" % (r.get("segments", 0), r.get("vias", 0)))
+        else:
+            cfg = os.path.join(tmp, "kroute.toml")
+            open(cfg, "w", encoding="utf8").write(rules_toml())
+            print("kroute route (до %d с)" % TIMEOUT)
+            r = kroute("route", PCB, "-c", cfg, "-t", str(TIMEOUT), "-o", out, "--emit", ROUTES)
+            st = r.get("stats", {})
+            print("   %s: цепей %d, дорожек %d, via %d, %.1f с" % (r.get("status"), r.get("nets_routed", 0),
+                  st.get("segments", 0), st.get("vias", 0), st.get("time_s", 0)))
+            for u in r.get("unrouted", []):
+                print("   не разведено %s: %s" % (u.get("net"), u.get("reason")))
+            for n in r.get("notes", []):
+                print("  ", n)
+            if r.get("status") != "complete":
+                raise SystemExit("kroute route: развести полностью не удалось")
+            open(KEY, "w").write(key + "\n")
+        shutil.copyfile(out, PCB)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def finish():
+    """После трассировки: сужения, хвосты, дуги, сшивка земли, откат дуг у нарушений."""
     b = pcbnew.LoadBoard(PCB)
-    pcbnew.ExportSpecctraDSN(b, DSN)
-    dsn = patch_dsn(open(DSN, encoding="utf8").read())
-    open(DSN, "w", encoding="utf8").write(dsn)
-    key = board_key(b)
-
-    # -------------------------------------------------------------- 2. роутер
-    cached = os.path.exists(SES) and os.path.exists(KEY) and open(KEY).read().strip() == key
-    if cached and not reroute:
-        print("Freerouting: DSN не изменился - берём прошлый", os.path.basename(SES))
-    else:
-        print("Freerouting:", JAR)
-        r = subprocess.run([JAVA, "-jar", JAR, "--gui.enabled=false", "--router.automatic_neckdown=false", "--router.neck_width_um=150", "-de", DSN, "-do", SES,
-                            "--router.autorouter.max_passes=200"], capture_output=True, text=True, timeout=1800)
-        log = r.stdout + r.stderr
-        open(BASE + ".freerouting.log", "w", encoding="utf8").write(log)
-        if r.returncode != 0 or not os.path.exists(SES):
-            raise SystemExit("Freerouting не отработал:\n" + log[-2000:])
-        for ln in log.splitlines():
-            if re.search(r"stage completed", ln, re.I):
-                print("  ", ln[24:].strip()[:150])
-        open(KEY, "w").write(key + "\n")
-
-    # -------------------------------------------------------------- 3. импорт
-    if not pcbnew.ImportSpecctraSES(b, SES):
-        raise SystemExit("ImportSpecctraSES: ошибка")
-    # Freerouting сужает дорожку у узких падов (0.75 ширины класса, у USB-C это 0.11 мм),
-    # отключить это из командной строки не выходит. Сужения - до 0.13 мм: это в нормах
-    # JLCPCB для двухслойки (от 0.127), а зазор до соседних падов разъёма ещё остаётся
-    # (при 0.15 его не хватало на сотую). Если всё же не хватит, DRC забракует попытку.
+    # дорожки уже 0.13 мм (сужение у узкого пада) - до 0.13: норма JLCPCB для
+    # двухслойки (от 0.127); где расширение съело зазор - вернуть исходную ширину
     wide = {}
     for t in b.GetTracks():
         if t.GetClass() == "PCB_TRACK" and not t.IsLocked() and t.GetWidth() < mm(0.13):
             wide[t.m_Uuid.AsString()] = t.GetWidth()
             t.SetWidth(mm(0.13))
+    print("убрано хвостов: %d" % cleanup(b))
     pcbnew.SaveBoard(PCB, b)
-    # где расширение съело зазор (бывает у via на тысячные мм) - вернуть исходную ширину
-    bad = drc_bad_items() & set(wide)
+    bad = drc_bad_items() & set(wide) if wide else set()
     if bad:
         b = pcbnew.LoadBoard(PCB)
         for t in b.GetTracks():
@@ -535,16 +488,13 @@ def route_once(reroute):
                 t.SetWidth(wide[t.m_Uuid.AsString()])
         pcbnew.SaveBoard(PCB, b)
         print("  сужения без расширения (не хватает зазора): %d" % len(bad))
-    stage("cleanup")
 
-    # -------------------------------------------------------------- 4. дуги
-    # Ручная разводка заблокирована в build.py, роутер её не трогал - скругляем всё.
+    # Ручная разводка заблокирована в build.py, трассировщик её не трогал - скругляем всё.
     b = pcbnew.LoadBoard(PCB)
     recs = fillet_all(b)
     print("скруглено изломов: %d" % len(recs))
     pcbnew.SaveBoard(PCB, b)
     fill_zones(PCB)
-    # -------------------------------------------------------------- 5. сшивка земли
     b = pcbnew.LoadBoard(PCB)
     n = stitch_gnd(b)
     if n:
@@ -563,42 +513,33 @@ def route_once(reroute):
             break
         pcbnew.SaveBoard(PCB, b)
         fill_zones(PCB)
-    RECS = BASE + ".fillets.json"
     for _ in range(4):
         bad = drc_bad_items()
         back = [r for r in recs if r["arc"] in bad or any(u in bad for u, _ in r["t"])]
         if not back:
             break
-        json.dump(back, open(RECS, "w", encoding="utf8"))
-        stage("revert", RECS)
-        os.remove(RECS)
+        b = pcbnew.LoadBoard(PCB)
+        revert(b, back)
+        pcbnew.SaveBoard(PCB, b)
         recs = [r for r in recs if r not in back]
         print("  откат скруглений у нарушений зазора: %d" % len(back))
         fill_zones(PCB)
     print("дуг на плате: %d" % len(recs))
     # после скруглений и откатов могут остаться огрызки отрезков в сотые доли мм,
     # повисшие одним концом - та же чистка хвостов ещё раз
-    stage("cleanup")
+    b = pcbnew.LoadBoard(PCB)
+    n = cleanup(b)
+    if n:
+        print("убрано хвостов: %d" % n)
+        pcbnew.SaveBoard(PCB, b)
     fill_zones(PCB)
 
 
-# Freerouting от прогона к прогону разводит по-разному, и изредка оставляет то, что
-# DRC KiCad не пропускает (сужение дорожки у узких падов, недоведённый провод). Тогда -
-# заново с исходной платы, пока не выйдет чисто; удачный .ses кэшируется.
 if any(t.GetClass() == "PCB_ARC" for t in pcbnew.LoadBoard(PCB).GetTracks()):
     raise SystemExit("плата уже разведена и скруглена - сначала заново build.py")
-PRE = BASE + ".pre_route.kicad_pcb"
-shutil.copyfile(PCB, PRE)
-ATTEMPTS = 8
-for attempt in range(1, ATTEMPTS + 1):
-    if attempt > 1:
-        shutil.copyfile(PRE, PCB)
-    route_once(REROUTE or attempt > 1)
-    n = drc_errors()
-    if n == 0:
-        break
-    print("попытка %d: ошибок DRC %d - разводим заново" % (attempt, n))
-else:
-    raise SystemExit("за %d попыток чисто развести не удалось" % ATTEMPTS)
-os.remove(PRE)
-print("разводка: DRC чистый (попытка %d)" % attempt)
+route(REROUTE)
+finish()
+n = drc_errors()
+if n:
+    raise SystemExit("после разводки DRC: нарушений %d" % n)
+print("разводка: DRC чистый")
